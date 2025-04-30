@@ -16,7 +16,7 @@ bool Game::isMobile = false;
 
 Game::Game(int screenWidth, int screenHeight)
     : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
-      isMenuBarHovered(false), isFileMenuOpen(false)
+      isMenuBarHovered(false), isFileMenuOpen(false), gameTime(0.0f), remainingMines(NUM_MINES)
 {
 #ifdef __EMSCRIPTEN__
     // Check if we're running on a mobile device
@@ -45,6 +45,22 @@ void Game::Update(float dt)
 {
     UpdateUI();
     bool menuHandledClick = HandleMenuInput();
+
+    // Update game time if game is not over
+    if (!gameOver && !gameWon) {
+        gameTime += dt;
+    }
+
+    // Update remaining mines count
+    int flaggedCount = 0;
+    for (int row = 0; row < GRID_SIZE; ++row) {
+        for (int col = 0; col < GRID_SIZE; ++col) {
+            if (grid[row][col].state == CellState::FLAGGED) {
+                flaggedCount++;
+            }
+        }
+    }
+    remainingMines = NUM_MINES - flaggedCount;
 
     // Update scaling if window size changed
     if (IsWindowResized()) {
@@ -132,6 +148,20 @@ void Game::UpdateUI()
 
 void Game::DrawUI() {
     DrawMenuBar();
+
+    // Draw game stats
+    const int padding = 10;
+    const int fontSize = 20;
+    const int statsHeight = 30;  // Height for stats area
+    
+    // Draw remaining mines
+    std::string minesText = "Mines: " + std::to_string(remainingMines);
+    DrawText(minesText.c_str(), padding, 35, fontSize, BLACK);  // Moved below menu bar
+    
+    // Draw timer
+    std::string timeText = "Timer: " + std::to_string((int)gameTime);
+    int timeTextWidth = MeasureText(timeText.c_str(), fontSize);
+    DrawText(timeText.c_str(), gameScreenWidth - timeTextWidth - padding, 35, fontSize, BLACK);  // Moved below menu bar
 }
 
 void Game::Draw()
@@ -292,6 +322,7 @@ void Game::Randomize()
     remainingCells = GRID_SIZE * GRID_SIZE - NUM_MINES;
     gameOver = false;
     gameWon = false;
+    gameTime = 0.0f;  // Reset timer
 }
 
 void Game::InitializeGrid() {
@@ -436,7 +467,8 @@ void Game::DrawCell(int row, int col) const {
 void Game::UpdateScaling() {
     const int padding = 20;
     const int menuHeight = 30;
-    const int totalVerticalPadding = menuHeight + padding * 2; // Menu height + top padding + bottom padding
+    const int statsHeight = 30;  // Height for stats area
+    const int totalVerticalPadding = menuHeight + statsHeight + padding * 2; // Menu height + stats height + top padding + bottom padding
     
     // Calculate the maximum possible cell size that fits in the window
     float maxCellWidth = (float)gameScreenWidth / GRID_SIZE;
@@ -446,9 +478,9 @@ void Game::UpdateScaling() {
     // Calculate the total grid size
     float totalGridSize = cellSize * GRID_SIZE;
     
-    // Calculate the offset to center the grid horizontally and place it below the menu with padding
+    // Calculate the offset to center the grid horizontally and place it below the menu and stats with padding
     gridOffset.x = (gameScreenWidth - totalGridSize) / 2;
-    gridOffset.y = menuHeight + padding + (gameScreenHeight - totalVerticalPadding - totalGridSize) / 2;
+    gridOffset.y = menuHeight + statsHeight + padding + (gameScreenHeight - totalVerticalPadding - totalGridSize) / 2;
 }
 
 void Game::LoadTextures() {

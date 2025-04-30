@@ -58,6 +58,10 @@ private:
     RenderTexture2D targetRenderTex;
     Font font;
 
+    // Game stats
+    float gameTime;
+    int remainingMines;
+
     int screenWidth;
     int screenHeight;
     std::vector<std::vector<Cell>> grid;
