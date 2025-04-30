@@ -29,7 +29,7 @@ int main()
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
-    while (!WindowShouldClose())
+    while (!WindowShouldClose() && !exitWindowRequested)
     {
         mainLoop();
     }

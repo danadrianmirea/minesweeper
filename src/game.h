@@ -15,6 +15,7 @@ public:
     void UpdateUI();
 
     void Draw();
+    void DrawUI();
     std::string FormatWithLeadingZeroes(int number, int width);
     void Randomize();
 
@@ -27,11 +28,21 @@ private:
         int adjacentMines;
     };
 
+    // Menu related
+    void DrawMenuBar();
+    bool HandleMenuInput();
+    bool isMenuBarHovered;
+    bool isFileMenuOpen;
+    Rectangle fileMenuRect;
+    Rectangle newGameOptionRect;
+    Rectangle quitOptionRect;
+
     void InitializeGrid();
     void PlaceMines();
     void CalculateAdjacentMines();
     void RevealCell(int row, int col);
     void RevealAllMines();
+    void RevealAdjacentCells(int row, int col);
     bool IsValidCell(int row, int col) const;
     void CheckWinCondition();
     void DrawGrid() const;

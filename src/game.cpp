@@ -15,7 +15,8 @@
 bool Game::isMobile = false;
 
 Game::Game(int screenWidth, int screenHeight)
-    : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false)
+    : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
+      isMenuBarHovered(false), isFileMenuOpen(false)
 {
 #ifdef __EMSCRIPTEN__
     // Check if we're running on a mobile device
@@ -43,18 +44,22 @@ Game::~Game()
 void Game::Update(float dt)
 {
     UpdateUI();
+    bool menuHandledClick = HandleMenuInput();
 
     // Update scaling if window size changed
     if (IsWindowResized()) {
         UpdateScaling();
     }
 
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !menuHandledClick) {
         Vector2 mousePos = GetMousePosition();
         
         // Convert screen coordinates to game coordinates
         float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
         float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
+        
+        // Skip click handling if in menu bar area
+        if (gameY < 30) return;
         
         // Calculate grid position
         int col = (gameX - gridOffset.x) / cellSize;
@@ -75,8 +80,11 @@ void Game::Update(float dt)
         if (IsValidCell(row, col) && grid[row][col].state == CellState::HIDDEN) {
             RevealCell(row, col);
         }
+        else if (IsValidCell(row, col) && grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
+            RevealAdjacentCells(row, col);
+        }
     }
-    else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+    else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !menuHandledClick) {
         if (gameOver) return;
 
         Vector2 mousePos = GetMousePosition();
@@ -84,6 +92,9 @@ void Game::Update(float dt)
         // Convert screen coordinates to game coordinates
         float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
         float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
+        
+        // Skip click handling if in menu bar area
+        if (gameY < 30) return;
         
         // Calculate grid position
         int col = (gameX - gridOffset.x) / cellSize;
@@ -119,6 +130,10 @@ void Game::UpdateUI()
 #endif
 }
 
+void Game::DrawUI() {
+    DrawMenuBar();
+}
+
 void Game::Draw()
 {
     // Update scale based on current window size
@@ -127,6 +142,9 @@ void Game::Draw()
     // Render to texture
     BeginTextureMode(targetRenderTex);
     ClearBackground(RAYWHITE);
+    
+
+    
     DrawGrid();
     
     // Draw game state message
@@ -160,6 +178,10 @@ void Game::Draw()
         // Draw text
         DrawText(text, (gameScreenWidth - textWidth) / 2, gameScreenHeight / 2 - fontSize / 2, fontSize, WHITE);
     }
+
+    DrawUI();
+    
+
     EndTextureMode();
  
     // Draw the scaled texture to screen
@@ -172,6 +194,86 @@ void Game::Draw()
                    gameScreenWidth * scale, gameScreenHeight * scale},
         (Vector2){0, 0}, 0.0f, WHITE);
     EndDrawing();
+}
+
+void Game::DrawMenuBar()
+{
+    // Draw menu bar background
+    DrawRectangle(0, 0, gameScreenWidth, 30, LIGHTGRAY);
+    
+    // Draw File menu
+    const char* fileText = "File";
+    int textWidth = MeasureText(fileText, 20);
+    fileMenuRect = {110, 5, (float)textWidth + 20, 20};
+    
+    // Draw File menu button
+    Color fileButtonColor = isFileMenuOpen ? GRAY : LIGHTGRAY;
+    DrawRectangleRec(fileMenuRect, fileButtonColor);
+    DrawText(fileText, 120, 5, 20, BLACK);
+    
+    // Draw File menu dropdown if open
+    if (isFileMenuOpen)
+    {
+        const char* newGameText = "New Game";
+        const char* quitText = "Quit";
+        int newGameTextWidth = MeasureText(newGameText, 20);
+        int quitTextWidth = MeasureText(quitText, 20);
+        float menuWidth = (float)MAX(newGameTextWidth, quitTextWidth) + 20;
+        
+        // Draw New Game option
+        newGameOptionRect = {fileMenuRect.x, fileMenuRect.y + fileMenuRect.height, 
+                           menuWidth, 25};
+        DrawRectangleRec(newGameOptionRect, LIGHTGRAY);
+        DrawText(newGameText, newGameOptionRect.x + 10, newGameOptionRect.y + 2, 20, BLACK);
+        
+        // Draw Quit option
+        quitOptionRect = {fileMenuRect.x, newGameOptionRect.y + newGameOptionRect.height,
+                         menuWidth, 25};
+        DrawRectangleRec(quitOptionRect, LIGHTGRAY);
+        DrawText(quitText, quitOptionRect.x + 10, quitOptionRect.y + 2, 20, BLACK);
+    }
+}
+
+bool Game::HandleMenuInput()
+{
+    Vector2 mousePos = GetMousePosition();
+    
+    // Convert screen coordinates to game coordinates
+    float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
+    float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
+    
+    // Check if mouse is over menu bar
+    isMenuBarHovered = (gameY >= 0 && gameY <= 30);
+    
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        if (CheckCollisionPointRec({gameX, gameY}, fileMenuRect))
+        {
+            isFileMenuOpen = !isFileMenuOpen;
+            return true;
+        }
+        else if (isFileMenuOpen)
+        {
+            if (CheckCollisionPointRec({gameX, gameY}, newGameOptionRect))
+            {
+                Randomize();
+                isFileMenuOpen = false;
+                return true;
+            }
+            else if (CheckCollisionPointRec({gameX, gameY}, quitOptionRect))
+            {
+                exitWindowRequested = true;
+                isFileMenuOpen = false;
+                return true;
+            }
+            else
+            {
+                isFileMenuOpen = false;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 std::string Game::FormatWithLeadingZeroes(int number, int width)
@@ -332,17 +434,21 @@ void Game::DrawCell(int row, int col) const {
 }
 
 void Game::UpdateScaling() {
+    const int padding = 20;
+    const int menuHeight = 30;
+    const int totalVerticalPadding = menuHeight + padding * 2; // Menu height + top padding + bottom padding
+    
     // Calculate the maximum possible cell size that fits in the window
     float maxCellWidth = (float)gameScreenWidth / GRID_SIZE;
-    float maxCellHeight = (float)gameScreenHeight / GRID_SIZE;
+    float maxCellHeight = (float)(gameScreenHeight - totalVerticalPadding) / GRID_SIZE;
     cellSize = MIN(maxCellWidth, maxCellHeight);
     
     // Calculate the total grid size
     float totalGridSize = cellSize * GRID_SIZE;
     
-    // Calculate the offset to center the grid
+    // Calculate the offset to center the grid horizontally and place it below the menu with padding
     gridOffset.x = (gameScreenWidth - totalGridSize) / 2;
-    gridOffset.y = (gameScreenHeight - totalGridSize) / 2;
+    gridOffset.y = menuHeight + padding + (gameScreenHeight - totalVerticalPadding - totalGridSize) / 2;
 }
 
 void Game::LoadTextures() {
@@ -363,5 +469,36 @@ void Game::UnloadTextures() {
     UnloadTexture(flagTexture);
     for (int i = 0; i < 8; i++) {
         UnloadTexture(numberTextures[i]);
+    }
+}
+
+void Game::RevealAdjacentCells(int row, int col) {
+    if (!IsValidCell(row, col) || grid[row][col].state != CellState::REVEALED || grid[row][col].adjacentMines == 0) {
+        return;
+    }
+
+    int flaggedCount = 0;
+    // Count flagged neighbors
+    for (int dr = -1; dr <= 1; ++dr) {
+        for (int dc = -1; dc <= 1; ++dc) {
+            int newRow = row + dr;
+            int newCol = col + dc;
+            if (IsValidCell(newRow, newCol) && grid[newRow][newCol].state == CellState::FLAGGED) {
+                flaggedCount++;
+            }
+        }
+    }
+
+    // If the number of flags matches the number of adjacent mines, reveal all non-flagged neighbors
+    if (flaggedCount == grid[row][col].adjacentMines) {
+        for (int dr = -1; dr <= 1; ++dr) {
+            for (int dc = -1; dc <= 1; ++dc) {
+                int newRow = row + dr;
+                int newCol = col + dc;
+                if (IsValidCell(newRow, newCol) && grid[newRow][newCol].state == CellState::HIDDEN) {
+                    RevealCell(newRow, newCol);
+                }
+            }
+        }
     }
 }
