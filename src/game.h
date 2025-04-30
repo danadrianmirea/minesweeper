@@ -33,9 +33,15 @@ private:
     bool HandleMenuInput();
     bool isMenuBarHovered;
     bool isFileMenuOpen;
+    bool isHelpMenuOpen;
     Rectangle fileMenuRect;
     Rectangle newGameOptionRect;
     Rectangle quitOptionRect;
+    Rectangle helpMenuRect;
+    Rectangle aboutOptionRect;
+    Rectangle popupRect;
+    Rectangle okButtonRect;
+    bool showHelpPopup;
 
     void InitializeGrid();
     void PlaceMines();

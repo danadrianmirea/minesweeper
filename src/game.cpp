@@ -16,7 +16,8 @@ bool Game::isMobile = false;
 
 Game::Game(int screenWidth, int screenHeight)
     : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
-      isMenuBarHovered(false), isFileMenuOpen(false), gameTime(0.0f), remainingMines(NUM_MINES)
+      isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
+      gameTime(0.0f), remainingMines(NUM_MINES)
 {
 #ifdef __EMSCRIPTEN__
     // Check if we're running on a mobile device
@@ -45,6 +46,11 @@ void Game::Update(float dt)
 {
     UpdateUI();
     bool menuHandledClick = HandleMenuInput();
+
+    // If help popup is shown, ignore all game input
+    if (showHelpPopup) {
+        return;
+    }
 
     // Update game time if game is not over
     if (!gameOver && !gameWon) {
@@ -152,16 +158,60 @@ void Game::DrawUI() {
     // Draw game stats
     const int padding = 10;
     const int fontSize = 20;
-    const int statsHeight = 30;  // Height for stats area
+    const int statsHeight = 30;
     
     // Draw remaining mines
     std::string minesText = "Mines: " + std::to_string(remainingMines);
-    DrawText(minesText.c_str(), padding, 35, fontSize, BLACK);  // Moved below menu bar
+    DrawText(minesText.c_str(), padding, 35, fontSize, BLACK);
     
     // Draw timer
     std::string timeText = "Timer: " + std::to_string((int)gameTime);
     int timeTextWidth = MeasureText(timeText.c_str(), fontSize);
-    DrawText(timeText.c_str(), gameScreenWidth - timeTextWidth - padding, 35, fontSize, BLACK);  // Moved below menu bar
+    DrawText(timeText.c_str(), gameScreenWidth - timeTextWidth - padding, 35, fontSize, BLACK);
+
+    // Draw help popup if active
+    if (showHelpPopup)
+    {
+        // Draw semi-transparent background
+        DrawRectangle(0, 0, gameScreenWidth, gameScreenHeight, (Color){0, 0, 0, 128});
+        
+        // Draw popup background
+        const int popupWidth = 500;  // Increased from 400
+        const int popupHeight = 400; // Increased from 300
+        popupRect = {(float)(gameScreenWidth - popupWidth) / 2, (float)(gameScreenHeight - popupHeight) / 2,
+                    (float)popupWidth, (float)popupHeight};
+        DrawRectangleRec(popupRect, LIGHTGRAY);
+        
+        // Draw popup title
+        const char* title = "How to Play Minesweeper";
+        int titleWidth = MeasureText(title, 24);
+        DrawText(title, popupRect.x + (popupWidth - titleWidth) / 2, popupRect.y + 30, 24, BLACK);
+        
+        // Draw instructions
+        const char* instructions[] = {
+            "1. Left-click to reveal a cell",
+            "2. Right-click to place/remove a flag",
+            "3. Numbers show how many mines are adjacent",
+            "4. Flag all mines to win",
+            "5. Clicking a mine ends the game",
+            "6. Click both left+right on a number to reveal",
+            "   adjacent cells if correct flags are placed"
+        };
+        
+        int lineHeight = 35;  // Increased from 30
+        for (int i = 0; i < 7; i++)
+        {
+            DrawText(instructions[i], popupRect.x + 30, popupRect.y + 80 + i * lineHeight, 20, BLACK);
+        }
+        
+        // Draw OK button
+        const char* okText = "OK";
+        int okTextWidth = MeasureText(okText, 20);
+        okButtonRect = {popupRect.x + (popupWidth - 100) / 2, popupRect.y + popupHeight - 60, 100, 30};
+        DrawRectangleRec(okButtonRect, GRAY);
+        DrawText(okText, okButtonRect.x + (okButtonRect.width - okTextWidth) / 2, 
+                okButtonRect.y + 5, 20, BLACK);
+    }
 }
 
 void Game::Draw()
@@ -262,6 +312,27 @@ void Game::DrawMenuBar()
         DrawRectangleRec(quitOptionRect, LIGHTGRAY);
         DrawText(quitText, quitOptionRect.x + 10, quitOptionRect.y + 2, 20, BLACK);
     }
+
+    // Draw Help menu
+    const char* helpText = "Help";
+    int helpTextWidth = MeasureText(helpText, 20);
+    helpMenuRect = {fileMenuRect.x + fileMenuRect.width + 20, 5, (float)helpTextWidth + 20, 20};
+    
+    // Draw Help menu button
+    Color helpButtonColor = isHelpMenuOpen ? GRAY : LIGHTGRAY;
+    DrawRectangleRec(helpMenuRect, helpButtonColor);
+    DrawText(helpText, helpMenuRect.x + 10, 5, 20, BLACK);
+    
+    // Draw Help menu dropdown if open
+    if (isHelpMenuOpen)
+    {
+        const char* aboutText = "About";
+        int aboutTextWidth = MeasureText(aboutText, 20);
+        aboutOptionRect = {helpMenuRect.x, helpMenuRect.y + helpMenuRect.height,
+                          (float)aboutTextWidth + 20, 25};
+        DrawRectangleRec(aboutOptionRect, LIGHTGRAY);
+        DrawText(aboutText, aboutOptionRect.x + 10, aboutOptionRect.y + 2, 20, BLACK);
+    }
 }
 
 bool Game::HandleMenuInput()
@@ -280,6 +351,13 @@ bool Game::HandleMenuInput()
         if (CheckCollisionPointRec({gameX, gameY}, fileMenuRect))
         {
             isFileMenuOpen = !isFileMenuOpen;
+            isHelpMenuOpen = false;
+            return true;
+        }
+        else if (CheckCollisionPointRec({gameX, gameY}, helpMenuRect))
+        {
+            isHelpMenuOpen = !isHelpMenuOpen;
+            isFileMenuOpen = false;
             return true;
         }
         else if (isFileMenuOpen)
@@ -301,6 +379,25 @@ bool Game::HandleMenuInput()
                 isFileMenuOpen = false;
                 return true;
             }
+        }
+        else if (isHelpMenuOpen)
+        {
+            if (CheckCollisionPointRec({gameX, gameY}, aboutOptionRect))
+            {
+                showHelpPopup = true;
+                isHelpMenuOpen = false;
+                return true;
+            }
+            else
+            {
+                isHelpMenuOpen = false;
+                return true;
+            }
+        }
+        else if (showHelpPopup && CheckCollisionPointRec({gameX, gameY}, okButtonRect))
+        {
+            showHelpPopup = false;
+            return true;
         }
     }
     return false;
