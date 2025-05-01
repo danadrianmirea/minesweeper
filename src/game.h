@@ -18,6 +18,7 @@ public:
     void DrawUI();
     std::string FormatWithLeadingZeroes(int number, int width);
     void Randomize();
+    void ResetToInitialSize();  // Reset grid size to initial size
 
     static bool isMobile;
 
@@ -36,12 +37,16 @@ private:
     bool isHelpMenuOpen;
     Rectangle fileMenuRect;
     Rectangle newGameOptionRect;
+    Rectangle customGameOptionRect;  // New option for custom game
     Rectangle quitOptionRect;
     Rectangle helpMenuRect;
     Rectangle aboutOptionRect;
     Rectangle popupRect;
     Rectangle okButtonRect;
     bool showHelpPopup;
+    bool showCustomGamePopup;  // New flag for custom game popup
+    char customGridSizeInput[32];  // Buffer for custom grid size input
+    int customGridSizeInputLength;  // Track input length
 
     void InitializeGrid();
     void PlaceMines();
@@ -82,4 +87,9 @@ private:
     Texture2D bombTexture;
     Texture2D flagTexture;
     Texture2D numberTextures[8]; // 1-8
+    Texture2D backgroundTexture;  // Background texture
+
+    int currentGridSize;  // Track current grid size
+    static const int INITIAL_GRID_SIZE = 5;  // Starting grid size
+    int CalculateMineCount() const;  // Calculate mines based on grid size
 };
