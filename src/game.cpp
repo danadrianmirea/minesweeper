@@ -630,7 +630,14 @@ void Game::PlaceMines() {
     while (minesPlaced < minesToPlace) {
         int row = dis(gen);
         int col = dis(gen);
-        if (!grid[row][col].hasMine) {
+        
+        // Skip if this is a corner cell
+        bool isCorner = (row == 0 && col == 0) || // top-left
+                       (row == 0 && col == currentGridSize - 1) || // top-right
+                       (row == currentGridSize - 1 && col == 0) || // bottom-left
+                       (row == currentGridSize - 1 && col == currentGridSize - 1); // bottom-right
+        
+        if (!isCorner && !grid[row][col].hasMine) {
             grid[row][col].hasMine = true;
             minesPlaced++;
         }
