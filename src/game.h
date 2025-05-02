@@ -61,6 +61,7 @@ private:
     void CalculateAdjacentMines();
     void RevealCell(int row, int col);
     void RevealAllMines();
+    void RevealNeighboringMines(int row, int col);  // Reveal mines adjacent to a cell
     void RevealAdjacentCells(int row, int col);
     bool IsValidCell(int row, int col) const;
     void CheckWinCondition();
@@ -72,6 +73,7 @@ private:
 
     bool gameOver;
     bool gameWon;
+    float gameOverTextTimer;  // Timer for game over text display
 
     float screenScale;
     RenderTexture2D targetRenderTex;

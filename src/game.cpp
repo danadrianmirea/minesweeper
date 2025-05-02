@@ -18,6 +18,7 @@ bool Game::isMobile = false;
 
 Game::Game(int screenWidth, int screenHeight)
     : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
+      gameOverTextTimer(0.0f),  // Initialize game over text timer
       isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), gameTime(0.0f), 
       remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
@@ -74,6 +75,11 @@ void Game::Update(float dt)
         // Update game time if game is not over
         if (!gameOver && !gameWon) {
             gameTime += dt;
+        }
+
+        // Update game over text timer
+        if (gameOver && !gameWon) {
+            gameOverTextTimer += dt;
         }
 
         // Update remaining mines count
@@ -416,7 +422,7 @@ void Game::Draw()
         // Draw text
         DrawText(text, (gameScreenWidth - textWidth) / 2, gameScreenHeight / 2 - fontSize / 2, fontSize, WHITE);
     }
-    else if (gameOver) {
+    else if (gameOver && gameOverTextTimer < 2.0f) {  // Only show text for 2 seconds
         const char* text = "You lost! Click to try again";
         int fontSize = 40;
         int textWidth = MeasureText(text, fontSize);
@@ -802,6 +808,7 @@ void Game::Randomize() {
         remainingCells = currentGridSize * currentGridSize - CalculateMineCount();
         gameOver = false;
         gameWon = false;
+        gameOverTextTimer = 0.0f;  // Reset game over text timer
         gameTime = 0.0f;  // Reset timer
         
         // Update scaling to adjust view for new grid size
@@ -1036,8 +1043,8 @@ void Game::DrawCell(int row, int col) const {
     
     // Draw cell background
     Color cellColor = (Color){0, 255, 255, 255};  // Aqua blue for hidden cells
-    if (grid[row][col].state == CellState::REVEALED) {
-        cellColor = (Color){135, 206, 235, 255};  // Sky blue for revealed cells
+    if (grid[row][col].state == CellState::REVEALED || grid[row][col].state == CellState::FLAGGED) {
+        cellColor = (Color){135, 206, 235, 255};  // Sky blue for revealed and flagged cells
     }
     DrawRectangle(x, y, cellSize-1, cellSize-1, cellColor);    
     
@@ -1109,35 +1116,104 @@ void Game::UnloadTextures() {
     UnloadTexture(backgroundTexture);
 }
 
-void Game::RevealAdjacentCells(int row, int col) {
-    try {
+void Game::RevealNeighboringMines(int row, int col)
+{
 #ifdef DEBUG
-        std::cout << "Attempting to reveal adjacent cells at row=" << row << ", col=" << col << std::endl;
+    std::cout << "Revealing neighboring mines around cell (" << row << ", " << col << ")" << std::endl;
 #endif
-        if (!IsValidCell(row, col) || grid[row][col].state != CellState::REVEALED || grid[row][col].adjacentMines == 0) {
-            return;
-        }
 
-        int flaggedCount = 0;
+    try {
+        // Check all 8 neighboring cells
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                if (i == 0 && j == 0) continue; // Skip the center cell
+                
+                int newRow = row + i;
+                int newCol = col + j;
+                
+                if (IsValidCell(newRow, newCol)) {
+                    if (grid[newRow][newCol].hasMine) {
+                        grid[newRow][newCol].state = CellState::REVEALED;
+#ifdef DEBUG
+                        std::cout << "Revealed mine at (" << newRow << ", " << newCol << ")" << std::endl;
+#endif
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cout << "Error in RevealNeighboringMines: " << e.what() << std::endl;
+#endif
+    }
+}
+
+void Game::RevealAdjacentCells(int row, int col)
+{
+#ifdef DEBUG
+    std::cout << "Revealing adjacent cells for cell (" << row << ", " << col << ")" << std::endl;
+#endif
+
+    try {
         // Count flagged neighbors
-        for (int dr = -1; dr <= 1; ++dr) {
-            for (int dc = -1; dc <= 1; ++dc) {
-                int newRow = row + dr;
-                int newCol = col + dc;
+        int flaggedNeighbors = 0;
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                if (i == 0 && j == 0) continue; // Skip the center cell
+                
+                int newRow = row + i;
+                int newCol = col + j;
+                
                 if (IsValidCell(newRow, newCol) && grid[newRow][newCol].state == CellState::FLAGGED) {
-                    flaggedCount++;
+                    flaggedNeighbors++;
                 }
             }
         }
 
-        // If the number of flags matches the number of adjacent mines, reveal all non-flagged neighbors
-        if (flaggedCount == grid[row][col].adjacentMines) {
-            for (int dr = -1; dr <= 1; ++dr) {
-                for (int dc = -1; dc <= 1; ++dc) {
-                    int newRow = row + dr;
-                    int newCol = col + dc;
+        // If the number of flagged neighbors matches the adjacent mines count
+        if (flaggedNeighbors == grid[row][col].adjacentMines) {
+            // Check if any flagged cell is not a mine (mistake)
+            bool mistakeMade = false;
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    if (i == 0 && j == 0) continue;
+                    
+                    int newRow = row + i;
+                    int newCol = col + j;
+                    
                     if (IsValidCell(newRow, newCol) && 
-                        grid[newRow][newCol].state == CellState::HIDDEN) {
+                        grid[newRow][newCol].state == CellState::FLAGGED && 
+                        !grid[newRow][newCol].hasMine) {
+                        mistakeMade = true;
+                        break;
+                    }
+                }
+                if (mistakeMade) break;
+            }
+
+            if (mistakeMade) {
+                // Reveal only the neighboring mines to show the mistake
+                RevealNeighboringMines(row, col);
+                gameOver = true;
+                return;
+            }
+
+            // Reveal all non-flagged adjacent cells
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    if (i == 0 && j == 0) continue;
+                    
+                    int newRow = row + i;
+                    int newCol = col + j;
+                    
+                    if (IsValidCell(newRow, newCol) && 
+                        grid[newRow][newCol].state != CellState::FLAGGED) {
+                        if (grid[newRow][newCol].hasMine) {
+                            // Hit a mine - reveal only neighboring mines
+                            RevealNeighboringMines(newRow, newCol);
+                            gameOver = true;
+                            return;
+                        }
                         RevealCell(newRow, newCol);
                     }
                 }
@@ -1145,11 +1221,7 @@ void Game::RevealAdjacentCells(int row, int col) {
         }
     } catch (const std::exception& e) {
 #ifdef DEBUG
-        std::cerr << "Exception in RevealAdjacentCells: " << e.what() << " at row=" << row << ", col=" << col << std::endl;
-#endif
-    } catch (...) {
-#ifdef DEBUG
-        std::cerr << "Unknown exception in RevealAdjacentCells at row=" << row << ", col=" << col << std::endl;
+        std::cout << "Error in RevealAdjacentCells: " << e.what() << std::endl;
 #endif
     }
 }
