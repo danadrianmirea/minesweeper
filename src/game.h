@@ -51,6 +51,7 @@ private:
     bool showCustomGamePopup;  // New flag for custom game popup
     bool showSavePopup;        // New flag for save popup
     bool showLoadPopup;        // New flag for load popup
+    bool showWelcomePopup;     // Flag for welcome popup
     char customGridSizeInput[32];  // Buffer for custom grid size input
     char filenameInput[256];       // Buffer for filename input
     int customGridSizeInputLength;  // Track input length

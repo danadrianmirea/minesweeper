@@ -20,8 +20,8 @@ Game::Game(int screenWidth, int screenHeight)
     : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
       gameOverTextTimer(0.0f),  // Initialize game over text timer
       isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
-      showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), gameTime(0.0f), 
-      remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
+      showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
+      gameTime(0.0f), remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
       filenameInputLength(0)
 {
 #ifdef DEBUG
@@ -205,8 +205,6 @@ void Game::UpdateUI()
 }
 
 void Game::DrawUI() {
-
-
     // Draw game stats
     const int padding = 10;
     const int fontSize = 20;
@@ -220,6 +218,65 @@ void Game::DrawUI() {
     std::string timeText = "Timer: " + std::to_string((int)gameTime);
     int timeTextWidth = MeasureText(timeText.c_str(), fontSize);
     DrawText(timeText.c_str(), gridOffset.x + currentGridSize * cellSize - timeTextWidth, gridOffset.y - statsHeight, fontSize, WHITE);
+
+    // Draw welcome popup if active
+    if (showWelcomePopup) {
+        // Draw semi-transparent background
+        DrawRectangle(0, 0, gameScreenWidth, gameScreenHeight, (Color){0, 0, 0, 128});
+        
+        // Calculate text measurements
+        const char* title = "Welcome to Minesweeper!";
+        const char* welcomeText = "Here are some tips to help you get started:";
+        const char* tips[] = {
+            "1. The four corner cells are always safe - no mines there!",
+            "2. Left-click to reveal a cell, right-click to place/remove a flag",
+            "3. Numbers show how many mines are adjacent to that cell",
+            "4. When you lose, you can try again with the same grid size",
+            "5. Try to reach and beat the 20x20 grid to complete the game!",
+            "6. Use both mouse buttons on a number to reveal adjacent cells"
+        };
+        
+        // Calculate maximum width needed
+        int maxWidth = MeasureText(title, 24);
+        maxWidth = MAX(maxWidth, MeasureText(welcomeText, 20));
+        for (int i = 0; i < 6; i++) {
+            maxWidth = MAX(maxWidth, MeasureText(tips[i], 20));
+        }
+        
+        // Add padding to width and calculate height
+        const int padding = 30;
+        const int lineHeight = 35;
+        const int popupWidth = maxWidth + padding * 2;
+        const int popupHeight = 400;  // Fixed height is fine since we have fixed number of lines
+        
+        // Draw popup background
+        popupRect = {(float)(gameScreenWidth - popupWidth) / 2, (float)(gameScreenHeight - popupHeight) / 2,
+                    (float)popupWidth, (float)popupHeight};
+        DrawRectangleRec(popupRect, LIGHTGRAY);
+        
+        // Draw popup title
+        int titleWidth = MeasureText(title, 24);
+        DrawText(title, popupRect.x + (popupWidth - titleWidth) / 2, popupRect.y + 30, 24, BLACK);
+        
+        // Draw welcome message
+        DrawText(welcomeText, popupRect.x + padding, popupRect.y + 80, 20, BLACK);
+        
+        // Draw tips
+        for (int i = 0; i < 6; i++) {
+            DrawText(tips[i], popupRect.x + padding, popupRect.y + 120 + i * lineHeight, 20, BLACK);
+        }
+        
+        // Draw OK button
+        const char* okText = "Let's Play!";
+        int okTextWidth = MeasureText(okText, 20);
+        okButtonRect = {(float)(popupRect.x + (popupWidth - (okTextWidth + 40)) / 2),  // Center with extra padding
+                       (float)(popupRect.y + popupHeight - 60), 
+                       (float)(okTextWidth + 40),  // Add 40 pixels padding (20 on each side)
+                       30.0f};
+        DrawRectangleRec(okButtonRect, GRAY);
+        DrawText(okText, okButtonRect.x + (okButtonRect.width - okTextWidth) / 2, 
+                okButtonRect.y + 5, 20, BLACK);
+    }
 
     // Draw help popup if active
     if (showHelpPopup)
@@ -555,6 +612,12 @@ bool Game::HandleMenuInput()
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
+        // Handle welcome popup - click anywhere to dismiss
+        if (showWelcomePopup) {
+            showWelcomePopup = false;
+            return true;
+        }
+
         if (CheckCollisionPointRec({gameX, gameY}, fileMenuRect))
         {
             isFileMenuOpen = !isFileMenuOpen;
