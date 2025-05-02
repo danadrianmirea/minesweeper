@@ -1,6 +1,9 @@
 #pragma once
 #include <raylib.h>
 
+// Debug flag - comment out to disable debug logging
+#define DEBUG
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 

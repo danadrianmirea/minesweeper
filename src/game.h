@@ -22,6 +22,10 @@ public:
 
     static bool isMobile;
 
+#ifdef DEBUG
+    void InitializeDebugGrid();  // Initialize grid with predefined mine pattern for debugging
+#endif
+
 private:
     struct Cell {
         bool hasMine;
@@ -45,8 +49,12 @@ private:
     Rectangle okButtonRect;
     bool showHelpPopup;
     bool showCustomGamePopup;  // New flag for custom game popup
+    bool showSavePopup;        // New flag for save popup
+    bool showLoadPopup;        // New flag for load popup
     char customGridSizeInput[32];  // Buffer for custom grid size input
+    char filenameInput[256];       // Buffer for filename input
     int customGridSizeInputLength;  // Track input length
+    int filenameInputLength;        // Track filename input length
 
     void InitializeGrid();
     void PlaceMines();
@@ -92,4 +100,8 @@ private:
     int currentGridSize;  // Track current grid size
     static const int INITIAL_GRID_SIZE = 5;  // Starting grid size
     int CalculateMineCount() const;  // Calculate mines based on grid size
+
+    // Save/Load functions
+    bool SaveGame(const std::string& filename);
+    bool LoadGame(const std::string& filename);
 };

@@ -4,6 +4,7 @@
 #include <cmath>  // For sqrtf
 #include <iostream>
 #include <cstring>  // For memset
+#include <fstream>  // For file operations
 
 #include "raylib.h"
 #include "globals.h"
@@ -18,9 +19,13 @@ bool Game::isMobile = false;
 Game::Game(int screenWidth, int screenHeight)
     : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
       isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
-      showCustomGamePopup(false), gameTime(0.0f), remainingMines(0), currentGridSize(INITIAL_GRID_SIZE),
-      customGridSizeInputLength(0)
+      showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), gameTime(0.0f), 
+      remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
+      filenameInputLength(0)
 {
+#ifdef DEBUG
+    std::cout << "Game constructor: Initializing with screen size " << screenWidth << "x" << screenHeight << std::endl;
+#endif
 #ifdef __EMSCRIPTEN__
     // Check if we're running on a mobile device
     isMobile = EM_ASM_INT({
@@ -34,10 +39,18 @@ Game::Game(int screenWidth, int screenHeight)
     LoadTextures();
     InitializeGrid();
     Randomize();
+#ifdef DEBUG
+    InitializeDebugGrid();
+#endif
+
     UpdateScaling();
 
     // Initialize custom grid size input buffer
     memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
+    memset(filenameInput, 0, sizeof(filenameInput));
+#ifdef DEBUG
+    std::cout << "Game constructor: Initialization complete" << std::endl;
+#endif
 }
 
 Game::~Game()
@@ -49,103 +62,120 @@ Game::~Game()
 
 void Game::Update(float dt)
 {
-    UpdateUI();
-    bool menuHandledClick = HandleMenuInput();
+    try {
+        UpdateUI();
+        bool menuHandledClick = HandleMenuInput();
 
-    // If help popup or custom game popup is shown, ignore all game input
-    if (showHelpPopup || showCustomGamePopup) {
-        return;
-    }
-
-    // Update game time if game is not over
-    if (!gameOver && !gameWon) {
-        gameTime += dt;
-    }
-
-    // Update remaining mines count
-    int flaggedCount = 0;
-    for (int row = 0; row < currentGridSize; ++row) {
-        for (int col = 0; col < currentGridSize; ++col) {
-            if (grid[row][col].state == CellState::FLAGGED) {
-                flaggedCount++;
-            }
-        }
-    }
-    remainingMines = CalculateMineCount() - flaggedCount;
-
-    // Update scaling if window size changed
-    if (IsWindowResized()) {
-        UpdateScaling();
-    }
-
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !menuHandledClick) {
-        Vector2 mousePos = GetMousePosition();
-        
-        // Convert screen coordinates to game coordinates
-        float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
-        float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
-        
-        // Skip click handling if in menu bar area
-        if (gameY < 30) return;
-        
-        // Calculate grid position
-        int col = (gameX - gridOffset.x) / cellSize;
-        int row = (gameY - gridOffset.y) / cellSize;
-
-        // Check if click is within the game grid
-        bool isInGrid = (gameX >= gridOffset.x && gameX < gridOffset.x + currentGridSize * cellSize &&
-                        gameY >= gridOffset.y && gameY < gridOffset.y + currentGridSize * cellSize);
-
-        if (gameOver) {
-            // If game is over, any click in the game area starts a new game
-            if (isInGrid) {
-                Randomize();
-            }
+        // If help popup or custom game popup is shown, ignore all game input
+        if (showHelpPopup || showCustomGamePopup || showSavePopup || showLoadPopup) {
             return;
         }
 
-        if (IsValidCell(row, col)) {
-            if (grid[row][col].state == CellState::HIDDEN) {
-                RevealCell(row, col);
-            }
-            else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
-                // Check if right button is also pressed
-                if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-                    RevealAdjacentCells(row, col);
+        // Update game time if game is not over
+        if (!gameOver && !gameWon) {
+            gameTime += dt;
+        }
+
+        // Update remaining mines count
+        int flaggedCount = 0;
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                if (grid[row][col].state == CellState::FLAGGED) {
+                    flaggedCount++;
                 }
             }
         }
-    }
-    else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !menuHandledClick) {
-        if (gameOver) return;
+        remainingMines = CalculateMineCount() - flaggedCount;
 
-        Vector2 mousePos = GetMousePosition();
-        
-        // Convert screen coordinates to game coordinates
-        float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
-        float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
-        
-        // Skip click handling if in menu bar area
-        if (gameY < 30) return;
-        
-        // Calculate grid position
-        int col = (gameX - gridOffset.x) / cellSize;
-        int row = (gameY - gridOffset.y) / cellSize;
+        // Update scaling if window size changed
+        if (IsWindowResized()) {
+            UpdateScaling();
+        }
 
-        if (IsValidCell(row, col)) {
-            if (grid[row][col].state == CellState::HIDDEN) {
-                grid[row][col].state = CellState::FLAGGED;
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !menuHandledClick) {
+            Vector2 mousePos = GetMousePosition();
+            
+            // Convert screen coordinates to game coordinates
+            float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
+            float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
+            
+            // Skip click handling if in menu bar area
+            if (gameY < 30) return;
+            
+            // Calculate grid position
+            int col = (gameX - gridOffset.x) / cellSize;
+            int row = (gameY - gridOffset.y) / cellSize;
+
+#ifdef DEBUG
+            std::cout << "Left click at grid position: row=" << row << ", col=" << col << std::endl;
+#endif
+
+            // Check if click is within the game grid
+            bool isInGrid = (gameX >= gridOffset.x && gameX < gridOffset.x + currentGridSize * cellSize &&
+                            gameY >= gridOffset.y && gameY < gridOffset.y + currentGridSize * cellSize);
+
+            if (gameOver) {
+                // If game is over, any click in the game area starts a new game
+                if (isInGrid) {
+#ifdef DEBUG
+                    std::cout << "Starting new game after game over" << std::endl;
+#endif
+                    Randomize();
+                }
+                return;
             }
-            else if (grid[row][col].state == CellState::FLAGGED) {
-                grid[row][col].state = CellState::HIDDEN;
-            }
-            else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
-                // Check if left button is also pressed
-                if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-                    RevealAdjacentCells(row, col);
+
+            if (IsValidCell(row, col)) {
+                if (grid[row][col].state == CellState::HIDDEN) {
+                    RevealCell(row, col);
+                }
+                else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
+                    // Check if right button is also pressed
+                    if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+                        RevealAdjacentCells(row, col);
+                    }
                 }
             }
         }
+        else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !menuHandledClick) {
+            if (gameOver) return;
+
+            Vector2 mousePos = GetMousePosition();
+            
+            // Convert screen coordinates to game coordinates
+            float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
+            float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
+            
+            // Skip click handling if in menu bar area
+            if (gameY < 30) return;
+            
+            // Calculate grid position
+            int col = (gameX - gridOffset.x) / cellSize;
+            int row = (gameY - gridOffset.y) / cellSize;
+
+            if (IsValidCell(row, col)) {
+                if (grid[row][col].state == CellState::HIDDEN) {
+                    grid[row][col].state = CellState::FLAGGED;
+                }
+                else if (grid[row][col].state == CellState::FLAGGED) {
+                    grid[row][col].state = CellState::HIDDEN;
+                }
+                else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
+                    // Check if left button is also pressed
+                    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                        RevealAdjacentCells(row, col);
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Exception in Game::Update: " << e.what() << std::endl;
+#endif
+    } catch (...) {
+#ifdef DEBUG
+        std::cerr << "Unknown exception in Game::Update" << std::endl;
+#endif
     }
 }
 
@@ -270,6 +300,86 @@ void Game::DrawUI() {
                 okButtonRect.y + 5, 20, BLACK);
     }
 
+    // Draw save popup if active
+    if (showSavePopup) {
+        // Draw semi-transparent background
+        DrawRectangle(0, 0, gameScreenWidth, gameScreenHeight, (Color){0, 0, 0, 128});
+        
+        // Draw popup background
+        const int popupWidth = 400;
+        const int popupHeight = 200;
+        popupRect = {(float)(gameScreenWidth - popupWidth) / 2, (float)(gameScreenHeight - popupHeight) / 2,
+                    (float)popupWidth, (float)popupHeight};
+        DrawRectangleRec(popupRect, LIGHTGRAY);
+        
+        // Draw popup title
+        const char* title = "Save Game";
+        int titleWidth = MeasureText(title, 24);
+        DrawText(title, popupRect.x + (popupWidth - titleWidth) / 2, popupRect.y + 30, 24, BLACK);
+        
+        // Draw input prompt
+        const char* prompt = "Enter filename:";
+        DrawText(prompt, popupRect.x + 30, popupRect.y + 80, 20, BLACK);
+        
+        // Draw input box
+        Rectangle inputBox = {popupRect.x + 30, popupRect.y + 110, popupWidth - 60, 30};
+        DrawRectangleRec(inputBox, WHITE);
+        DrawRectangleLinesEx(inputBox, 2, BLACK);
+        
+        // Draw input text
+        if (filenameInputLength > 0) {
+            DrawText(filenameInput, inputBox.x + 5, inputBox.y + 5, 20, BLACK);
+        }
+        
+        // Draw OK button
+        const char* okText = "OK";
+        int okTextWidth = MeasureText(okText, 20);
+        okButtonRect = {popupRect.x + (popupWidth - 100) / 2, popupRect.y + popupHeight - 60, 100, 30};
+        DrawRectangleRec(okButtonRect, GRAY);
+        DrawText(okText, okButtonRect.x + (okButtonRect.width - okTextWidth) / 2, 
+                okButtonRect.y + 5, 20, BLACK);
+    }
+
+    // Draw load popup if active
+    if (showLoadPopup) {
+        // Draw semi-transparent background
+        DrawRectangle(0, 0, gameScreenWidth, gameScreenHeight, (Color){0, 0, 0, 128});
+        
+        // Draw popup background
+        const int popupWidth = 400;
+        const int popupHeight = 200;
+        popupRect = {(float)(gameScreenWidth - popupWidth) / 2, (float)(gameScreenHeight - popupHeight) / 2,
+                    (float)popupWidth, (float)popupHeight};
+        DrawRectangleRec(popupRect, LIGHTGRAY);
+        
+        // Draw popup title
+        const char* title = "Load Game";
+        int titleWidth = MeasureText(title, 24);
+        DrawText(title, popupRect.x + (popupWidth - titleWidth) / 2, popupRect.y + 30, 24, BLACK);
+        
+        // Draw input prompt
+        const char* prompt = "Enter filename:";
+        DrawText(prompt, popupRect.x + 30, popupRect.y + 80, 20, BLACK);
+        
+        // Draw input box
+        Rectangle inputBox = {popupRect.x + 30, popupRect.y + 110, popupWidth - 60, 30};
+        DrawRectangleRec(inputBox, WHITE);
+        DrawRectangleLinesEx(inputBox, 2, BLACK);
+        
+        // Draw input text
+        if (filenameInputLength > 0) {
+            DrawText(filenameInput, inputBox.x + 5, inputBox.y + 5, 20, BLACK);
+        }
+        
+        // Draw OK button
+        const char* okText = "OK";
+        int okTextWidth = MeasureText(okText, 20);
+        okButtonRect = {popupRect.x + (popupWidth - 100) / 2, popupRect.y + popupHeight - 60, 100, 30};
+        DrawRectangleRec(okButtonRect, GRAY);
+        DrawText(okText, okButtonRect.x + (okButtonRect.width - okTextWidth) / 2, 
+                okButtonRect.y + 5, 20, BLACK);
+    }
+
     DrawMenuBar();
 }
 
@@ -358,11 +468,15 @@ void Game::DrawMenuBar()
     {
         const char* newGameText = "New Game";
         const char* customGameText = "Custom Game";
+        const char* saveGameText = "Save Game";
+        const char* loadGameText = "Load Game";
         const char* quitText = "Quit";
         int newGameTextWidth = MeasureText(newGameText, 20);
         int customGameTextWidth = MeasureText(customGameText, 20);
+        int saveGameTextWidth = MeasureText(saveGameText, 20);
+        int loadGameTextWidth = MeasureText(loadGameText, 20);
         int quitTextWidth = MeasureText(quitText, 20);
-        float menuWidth = (float)MAX(MAX(newGameTextWidth, customGameTextWidth), quitTextWidth) + 20;
+        float menuWidth = (float)MAX(MAX(MAX(MAX(newGameTextWidth, customGameTextWidth), saveGameTextWidth), loadGameTextWidth), quitTextWidth) + 20;
         
         // Draw New Game option
         newGameOptionRect = {fileMenuRect.x, fileMenuRect.y + fileMenuRect.height, 
@@ -375,9 +489,21 @@ void Game::DrawMenuBar()
                               menuWidth, 25};
         DrawRectangleRec(customGameOptionRect, BLACK);
         DrawText(customGameText, customGameOptionRect.x + 10, customGameOptionRect.y + 2, 20, WHITE);
+
+        // Draw Save Game option
+        Rectangle saveGameOptionRect = {fileMenuRect.x, customGameOptionRect.y + customGameOptionRect.height,
+                                     menuWidth, 25};
+        DrawRectangleRec(saveGameOptionRect, BLACK);
+        DrawText(saveGameText, saveGameOptionRect.x + 10, saveGameOptionRect.y + 2, 20, WHITE);
+
+        // Draw Load Game option
+        Rectangle loadGameOptionRect = {fileMenuRect.x, saveGameOptionRect.y + saveGameOptionRect.height,
+                                     menuWidth, 25};
+        DrawRectangleRec(loadGameOptionRect, BLACK);
+        DrawText(loadGameText, loadGameOptionRect.x + 10, loadGameOptionRect.y + 2, 20, WHITE);
         
         // Draw Quit option
-        quitOptionRect = {fileMenuRect.x, customGameOptionRect.y + customGameOptionRect.height,
+        quitOptionRect = {fileMenuRect.x, loadGameOptionRect.y + loadGameOptionRect.height,
                          menuWidth, 25};
         DrawRectangleRec(quitOptionRect, BLACK);
         DrawText(quitText, quitOptionRect.x + 10, quitOptionRect.y + 2, 20, WHITE);
@@ -432,6 +558,12 @@ bool Game::HandleMenuInput()
         }
         else if (isFileMenuOpen)
         {
+            // Calculate option rectangles
+            Rectangle saveGameOptionRect = {fileMenuRect.x, customGameOptionRect.y + customGameOptionRect.height,
+                                         customGameOptionRect.width, 25};
+            Rectangle loadGameOptionRect = {fileMenuRect.x, saveGameOptionRect.y + saveGameOptionRect.height,
+                                         customGameOptionRect.width, 25};
+
             if (CheckCollisionPointRec({gameX, gameY}, newGameOptionRect))
             {
                 ResetToInitialSize();
@@ -442,6 +574,22 @@ bool Game::HandleMenuInput()
             {
                 showCustomGamePopup = true;
                 isFileMenuOpen = false;
+                return true;
+            }
+            else if (CheckCollisionPointRec({gameX, gameY}, saveGameOptionRect))
+            {
+                showSavePopup = true;
+                isFileMenuOpen = false;
+                memset(filenameInput, 0, sizeof(filenameInput));
+                filenameInputLength = 0;
+                return true;
+            }
+            else if (CheckCollisionPointRec({gameX, gameY}, loadGameOptionRect))
+            {
+                showLoadPopup = true;
+                isFileMenuOpen = false;
+                memset(filenameInput, 0, sizeof(filenameInput));
+                filenameInputLength = 0;
                 return true;
             }
             else if (CheckCollisionPointRec({gameX, gameY}, quitOptionRect))
@@ -455,6 +603,24 @@ bool Game::HandleMenuInput()
                 isFileMenuOpen = false;
                 return true;
             }
+        }
+        else if (showSavePopup && CheckCollisionPointRec({gameX, gameY}, okButtonRect)) {
+            // Save game state
+            std::string filename(filenameInput);
+            if (!filename.empty()) {
+                SaveGame(filename);
+            }
+            showSavePopup = false;
+            return true;
+        }
+        else if (showLoadPopup && CheckCollisionPointRec({gameX, gameY}, okButtonRect)) {
+            // Load game state
+            std::string filename(filenameInput);
+            if (!filename.empty()) {
+                LoadGame(filename);
+            }
+            showLoadPopup = false;
+            return true;
         }
         else if (showCustomGamePopup)
         {
@@ -565,6 +731,46 @@ bool Game::HandleMenuInput()
         }
     }
     
+    // Handle text input for save/load popups
+    if (showSavePopup || showLoadPopup) {
+        int key = GetCharPressed();
+        while (key > 0) {
+            if (filenameInputLength < sizeof(filenameInput) - 1) {
+                filenameInput[filenameInputLength] = (char)key;
+                filenameInputLength++;
+            }
+            key = GetCharPressed();
+        }
+        
+        // Handle backspace
+        if (IsKeyPressed(KEY_BACKSPACE) && filenameInputLength > 0) {
+            filenameInputLength--;
+            filenameInput[filenameInputLength] = '\0';
+        }
+        
+        // Handle enter key
+        if (IsKeyPressed(KEY_ENTER)) {
+            if (showSavePopup) {
+                // Save game state
+                std::string filename(filenameInput);
+                if (!filename.empty()) {
+                    SaveGame(filename);
+                }
+                showSavePopup = false;
+                return true;
+            }
+            else if (showLoadPopup) {
+                // Load game state
+                std::string filename(filenameInput);
+                if (!filename.empty()) {
+                    LoadGame(filename);
+                }
+                showLoadPopup = false;
+                return true;
+            }
+        }
+    }
+    
     return false;
 }
 
@@ -576,35 +782,78 @@ std::string Game::FormatWithLeadingZeroes(int number, int width)
     return numberText;
 }
 
-void Game::Randomize()
-{
-    // Only increase grid size if we won
-    if (gameWon) {
-        currentGridSize++;
+void Game::Randomize() {
+    try {
+#ifdef DEBUG
+        std::cout << "Randomizing game with grid size: " << currentGridSize << std::endl;
+#endif
+        // Only increase grid size if we won
+        if (gameWon) {
+            currentGridSize++;
+        }
+        // Don't reset grid size on loss - keep the same size
+        
+        // Clear the grid before initializing
+        grid.clear();
+        
+        InitializeGrid();
+        PlaceMines();
+        CalculateAdjacentMines();
+        remainingCells = currentGridSize * currentGridSize - CalculateMineCount();
+        gameOver = false;
+        gameWon = false;
+        gameTime = 0.0f;  // Reset timer
+        
+        // Update scaling to adjust view for new grid size
+        UpdateScaling();
+#ifdef DEBUG
+        std::cout << "Game randomized successfully" << std::endl;
+        
+        // Save the game state to debug file
+        if (SaveGame("debug")) {
+            // Print mine positions for debugging
+            std::cout << "Mine positions:" << std::endl;
+            for (int row = 0; row < currentGridSize; ++row) {
+                for (int col = 0; col < currentGridSize; ++col) {
+                    std::cout << (grid[row][col].hasMine ? "1" : "0") << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+#endif
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Exception in Randomize: " << e.what() << std::endl;
+#endif
+    } catch (...) {
+#ifdef DEBUG
+        std::cerr << "Unknown exception in Randomize" << std::endl;
+#endif
     }
-    // Don't reset grid size on loss - keep the same size
-    
-    // Clear the grid before initializing
-    grid.clear();
-    
-    InitializeGrid();
-    PlaceMines();
-    CalculateAdjacentMines();
-    remainingCells = currentGridSize * currentGridSize - CalculateMineCount();
-    gameOver = false;
-    gameWon = false;
-    gameTime = 0.0f;  // Reset timer
-    
-    // Update scaling to adjust view for new grid size
-    UpdateScaling();
 }
 
 void Game::InitializeGrid() {
-    grid.resize(currentGridSize, std::vector<Cell>(currentGridSize));
-    for (int row = 0; row < currentGridSize; ++row) {
-        for (int col = 0; col < currentGridSize; ++col) {
-            grid[row][col] = { false, CellState::HIDDEN, 0 };
+    try {
+#ifdef DEBUG
+        std::cout << "Initializing grid with size: " << currentGridSize << std::endl;
+#endif
+        grid.resize(currentGridSize, std::vector<Cell>(currentGridSize));
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                grid[row][col] = { false, CellState::HIDDEN, 0 };
+            }
         }
+#ifdef DEBUG
+        std::cout << "Grid initialized successfully" << std::endl;
+#endif
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Exception in InitializeGrid: " << e.what() << std::endl;
+#endif
+    } catch (...) {
+#ifdef DEBUG
+        std::cerr << "Unknown exception in InitializeGrid" << std::endl;
+#endif
     }
 }
 
@@ -666,38 +915,94 @@ void Game::CalculateAdjacentMines() {
 }
 
 void Game::RevealCell(int row, int col) {
-    if (!IsValidCell(row, col) || grid[row][col].state != CellState::HIDDEN) {
-        return;
-    }
+    try {
+#ifdef DEBUG
+        std::cout << "Revealing cell at row=" << row << ", col=" << col << std::endl;
+#endif
+        if (!IsValidCell(row, col) || grid[row][col].state != CellState::HIDDEN) {
+            return;
+        }
 
-    grid[row][col].state = CellState::REVEALED;
-    remainingCells--;
+        grid[row][col].state = CellState::REVEALED;
+        remainingCells--;
 
-    if (grid[row][col].hasMine) {
-        gameOver = true;
-        gameWon = false;
-        RevealAllMines();
-        return;
-    }
+        if (grid[row][col].hasMine) {
+#ifdef DEBUG
+            std::cout << "Mine hit at row=" << row << ", col=" << col << std::endl;
+#endif
+            gameOver = true;
+            gameWon = false;
+            RevealAllMines();
+            return;
+        }
 
-    if (grid[row][col].adjacentMines == 0) {
-        for (int dr = -1; dr <= 1; ++dr) {
-            for (int dc = -1; dc <= 1; ++dc) {
-                RevealCell(row + dr, col + dc);
+        if (grid[row][col].adjacentMines == 0) {
+            for (int dr = -1; dr <= 1; ++dr) {
+                for (int dc = -1; dc <= 1; ++dc) {
+                    int newRow = row + dr;
+                    int newCol = col + dc;
+                    if (IsValidCell(newRow, newCol) && 
+                        grid[newRow][newCol].state == CellState::HIDDEN) {
+                        RevealCell(newRow, newCol);
+                    }
+                }
             }
         }
-    }
 
-    CheckWinCondition();
+        CheckWinCondition();
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Exception in RevealCell: " << e.what() << " at row=" << row << ", col=" << col << std::endl;
+#endif
+    } catch (...) {
+#ifdef DEBUG
+        std::cerr << "Unknown exception in RevealCell at row=" << row << ", col=" << col << std::endl;
+#endif
+    }
 }
 
 void Game::RevealAllMines() {
-    for (int row = 0; row < currentGridSize; ++row) {
-        for (int col = 0; col < currentGridSize; ++col) {
-            if (grid[row][col].hasMine) {
-                grid[row][col].state = CellState::REVEALED;
+    try {
+#ifdef DEBUG
+        std::cout << "Starting RevealAllMines with grid size: " << currentGridSize << std::endl;
+        std::cout << "Grid dimensions: rows=" << grid.size() << ", cols=" << (grid.empty() ? 0 : grid[0].size()) << std::endl;
+#endif
+        
+        int minesRevealed = 0;
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                try {
+                    if (grid[row][col].hasMine) {
+#ifdef DEBUG
+                        std::cout << "Revealing mine at row=" << row << ", col=" << col 
+                                 << ", current state=" << static_cast<int>(grid[row][col].state) << std::endl;
+#endif
+                        grid[row][col].state = CellState::REVEALED;
+                        minesRevealed++;
+                    }
+                } catch (const std::exception& e) {
+#ifdef DEBUG
+                    std::cerr << "Error processing cell at row=" << row << ", col=" << col 
+                              << ": " << e.what() << std::endl;
+#endif
+                } catch (...) {
+#ifdef DEBUG
+                    std::cerr << "Unknown error processing cell at row=" << row << ", col=" << col << std::endl;
+#endif
+                }
             }
         }
+#ifdef DEBUG
+        std::cout << "RevealAllMines completed. Total mines revealed: " << minesRevealed << std::endl;
+#endif
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Exception in RevealAllMines: " << e.what() << std::endl;
+#endif
+    } catch (...) {
+#ifdef DEBUG
+        std::cerr << "Unknown exception in RevealAllMines" << std::endl;
+#endif
     }
 }
 
@@ -805,37 +1110,200 @@ void Game::UnloadTextures() {
 }
 
 void Game::RevealAdjacentCells(int row, int col) {
-    if (!IsValidCell(row, col) || grid[row][col].state != CellState::REVEALED || grid[row][col].adjacentMines == 0) {
-        return;
-    }
-
-    int flaggedCount = 0;
-    // Count flagged neighbors
-    for (int dr = -1; dr <= 1; ++dr) {
-        for (int dc = -1; dc <= 1; ++dc) {
-            int newRow = row + dr;
-            int newCol = col + dc;
-            if (IsValidCell(newRow, newCol) && grid[newRow][newCol].state == CellState::FLAGGED) {
-                flaggedCount++;
-            }
+    try {
+#ifdef DEBUG
+        std::cout << "Attempting to reveal adjacent cells at row=" << row << ", col=" << col << std::endl;
+#endif
+        if (!IsValidCell(row, col) || grid[row][col].state != CellState::REVEALED || grid[row][col].adjacentMines == 0) {
+            return;
         }
-    }
 
-    // If the number of flags matches the number of adjacent mines, reveal all non-flagged neighbors
-    if (flaggedCount == grid[row][col].adjacentMines) {
+        int flaggedCount = 0;
+        // Count flagged neighbors
         for (int dr = -1; dr <= 1; ++dr) {
             for (int dc = -1; dc <= 1; ++dc) {
                 int newRow = row + dr;
                 int newCol = col + dc;
-                if (IsValidCell(newRow, newCol) && grid[newRow][newCol].state == CellState::HIDDEN) {
-                    RevealCell(newRow, newCol);
+                if (IsValidCell(newRow, newCol) && grid[newRow][newCol].state == CellState::FLAGGED) {
+                    flaggedCount++;
                 }
             }
         }
+
+        // If the number of flags matches the number of adjacent mines, reveal all non-flagged neighbors
+        if (flaggedCount == grid[row][col].adjacentMines) {
+            for (int dr = -1; dr <= 1; ++dr) {
+                for (int dc = -1; dc <= 1; ++dc) {
+                    int newRow = row + dr;
+                    int newCol = col + dc;
+                    if (IsValidCell(newRow, newCol) && 
+                        grid[newRow][newCol].state == CellState::HIDDEN) {
+                        RevealCell(newRow, newCol);
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Exception in RevealAdjacentCells: " << e.what() << " at row=" << row << ", col=" << col << std::endl;
+#endif
+    } catch (...) {
+#ifdef DEBUG
+        std::cerr << "Unknown exception in RevealAdjacentCells at row=" << row << ", col=" << col << std::endl;
+#endif
     }
 }
 
 void Game::ResetToInitialSize() {
     currentGridSize = INITIAL_GRID_SIZE;
     Randomize();
+}
+
+#ifdef DEBUG
+void Game::InitializeDebugGrid() {
+    try {
+        std::cout << "Initializing debug grid with predefined mine pattern" << std::endl;
+        
+        // Predefined mine pattern (1 = mine, 0 = safe)
+        const int debugMines[5][5] = {
+            {0, 0, 0, 0, 0},
+            {0, 1, 0, 0, 0},
+            {0, 1, 1, 0, 0},
+            {0, 0, 0, 0, 0},
+            {0, 0, 1, 0, 0}
+        };
+
+        // Set grid size to match debug pattern
+        currentGridSize = 5;
+        grid.clear();
+        grid.resize(currentGridSize, std::vector<Cell>(currentGridSize));
+
+        // Initialize grid with debug pattern
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                grid[row][col] = { 
+                    debugMines[row][col] == 1,  // hasMine
+                    CellState::HIDDEN,          // state
+                    0                           // adjacentMines (will be calculated)
+                };
+            }
+        }
+
+        // Calculate adjacent mines
+        CalculateAdjacentMines();
+        remainingCells = currentGridSize * currentGridSize - CalculateMineCount();
+        gameOver = false;
+        gameWon = false;
+        gameTime = 0.0f;
+
+        // Update scaling for the new grid
+        UpdateScaling();
+
+        std::cout << "Debug grid initialized successfully" << std::endl;
+        std::cout << "Mine positions:" << std::endl;
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                std::cout << (grid[row][col].hasMine ? "1" : "0") << " ";
+            }
+            std::cout << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Exception in InitializeDebugGrid: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Unknown exception in InitializeDebugGrid" << std::endl;
+    }
+}
+#endif
+
+bool Game::SaveGame(const std::string& filename) {
+    try {
+        std::ofstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+#ifdef DEBUG
+            std::cerr << "Failed to open file for saving: " << filename << std::endl;
+#endif
+            return false;
+        }
+
+        // Save grid size
+        file.write(reinterpret_cast<const char*>(&currentGridSize), sizeof(currentGridSize));
+        
+        // Save grid state
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                file.write(reinterpret_cast<const char*>(&grid[row][col].hasMine), sizeof(bool));
+                file.write(reinterpret_cast<const char*>(&grid[row][col].state), sizeof(CellState));
+                file.write(reinterpret_cast<const char*>(&grid[row][col].adjacentMines), sizeof(int));
+            }
+        }
+        
+        // Save game state
+        file.write(reinterpret_cast<const char*>(&gameOver), sizeof(bool));
+        file.write(reinterpret_cast<const char*>(&gameWon), sizeof(bool));
+        file.write(reinterpret_cast<const char*>(&gameTime), sizeof(float));
+        file.write(reinterpret_cast<const char*>(&remainingCells), sizeof(int));
+        file.write(reinterpret_cast<const char*>(&remainingMines), sizeof(int));
+        
+        file.close();
+#ifdef DEBUG
+        std::cout << "Game saved to " << filename << std::endl;
+#endif
+        return true;
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Error saving game: " << e.what() << std::endl;
+#endif
+        return false;
+    }
+}
+
+bool Game::LoadGame(const std::string& filename) {
+    try {
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+#ifdef DEBUG
+            std::cerr << "Failed to open file for loading: " << filename << std::endl;
+#endif
+            return false;
+        }
+
+        // Load grid size
+        int loadedGridSize;
+        file.read(reinterpret_cast<char*>(&loadedGridSize), sizeof(loadedGridSize));
+        
+        // Resize grid
+        currentGridSize = loadedGridSize;
+        grid.clear();
+        grid.resize(currentGridSize, std::vector<Cell>(currentGridSize));
+        
+        // Load grid state
+        for (int row = 0; row < currentGridSize; ++row) {
+            for (int col = 0; col < currentGridSize; ++col) {
+                file.read(reinterpret_cast<char*>(&grid[row][col].hasMine), sizeof(bool));
+                file.read(reinterpret_cast<char*>(&grid[row][col].state), sizeof(CellState));
+                file.read(reinterpret_cast<char*>(&grid[row][col].adjacentMines), sizeof(int));
+            }
+        }
+        
+        // Load game state
+        file.read(reinterpret_cast<char*>(&gameOver), sizeof(bool));
+        file.read(reinterpret_cast<char*>(&gameWon), sizeof(bool));
+        file.read(reinterpret_cast<char*>(&gameTime), sizeof(float));
+        file.read(reinterpret_cast<char*>(&remainingCells), sizeof(int));
+        file.read(reinterpret_cast<char*>(&remainingMines), sizeof(int));
+        
+        file.close();
+        
+        // Update scaling for the loaded grid
+        UpdateScaling();
+#ifdef DEBUG
+        std::cout << "Game loaded from " << filename << std::endl;
+#endif
+        return true;
+    } catch (const std::exception& e) {
+#ifdef DEBUG
+        std::cerr << "Error loading game: " << e.what() << std::endl;
+#endif
+        return false;
+    }
 }
