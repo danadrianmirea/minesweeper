@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstring>  // For memset
 #include <fstream>  // For file operations
+#include <algorithm>  // For std::max
 
 #include "raylib.h"
 #include "globals.h"
@@ -536,15 +537,22 @@ void Game::DrawMenuBar()
     {
         const char* newGameText = "New Game";
         const char* customGameText = "Custom Game";
+        int newGameTextWidth = MeasureText(newGameText, 20);
+        int customGameTextWidth = MeasureText(customGameText, 20);
+        
+#ifndef __EMSCRIPTEN__
         const char* saveGameText = "Save Game";
         const char* loadGameText = "Load Game";
         const char* quitText = "Quit";
-        int newGameTextWidth = MeasureText(newGameText, 20);
-        int customGameTextWidth = MeasureText(customGameText, 20);
         int saveGameTextWidth = MeasureText(saveGameText, 20);
         int loadGameTextWidth = MeasureText(loadGameText, 20);
         int quitTextWidth = MeasureText(quitText, 20);
-        float menuWidth = (float)MAX(MAX(MAX(MAX(newGameTextWidth, customGameTextWidth), saveGameTextWidth), loadGameTextWidth), quitTextWidth) + 20;
+        
+        // Find maximum width among all menu items
+        float menuWidth = (float)(std::max({newGameTextWidth, customGameTextWidth, saveGameTextWidth, loadGameTextWidth, quitTextWidth}) + 20);
+#else
+        float menuWidth = (float)(std::max(newGameTextWidth, customGameTextWidth) + 20);
+#endif
         
         // Draw New Game option
         newGameOptionRect = {fileMenuRect.x, fileMenuRect.y + fileMenuRect.height, 
@@ -558,6 +566,7 @@ void Game::DrawMenuBar()
         DrawRectangleRec(customGameOptionRect, BLACK);
         DrawText(customGameText, customGameOptionRect.x + 10, customGameOptionRect.y + 2, 20, WHITE);
 
+#ifndef __EMSCRIPTEN__
         // Draw Save Game option
         Rectangle saveGameOptionRect = {fileMenuRect.x, customGameOptionRect.y + customGameOptionRect.height,
                                      menuWidth, 25};
@@ -575,6 +584,7 @@ void Game::DrawMenuBar()
                          menuWidth, 25};
         DrawRectangleRec(quitOptionRect, BLACK);
         DrawText(quitText, quitOptionRect.x + 10, quitOptionRect.y + 2, 20, WHITE);
+#endif
     }
 
     // Draw Help menu
@@ -650,6 +660,7 @@ bool Game::HandleMenuInput()
                 isFileMenuOpen = false;
                 return true;
             }
+#ifndef __EMSCRIPTEN__
             else if (CheckCollisionPointRec({gameX, gameY}, saveGameOptionRect))
             {
                 showSavePopup = true;
@@ -672,6 +683,7 @@ bool Game::HandleMenuInput()
                 isFileMenuOpen = false;
                 return true;
             }
+#endif
             else
             {
                 isFileMenuOpen = false;
