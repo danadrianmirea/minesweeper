@@ -284,7 +284,7 @@ void Game::DrawUI() {
         DrawText(title, popupRect.x + (popupWidth - titleWidth) / 2, popupRect.y + 30, 24, BLACK);
         
         // Draw input prompt
-        const char* prompt = "Enter grid size:";
+        const char* prompt = "Enter grid size (5/20):";
         DrawText(prompt, popupRect.x + 30, popupRect.y + 80, 20, BLACK);
         
         // Draw input box
@@ -650,12 +650,14 @@ bool Game::HandleMenuInput()
                 }
                 
                 // Validate size
-                if (size >= 3 && size <= 30) {
-                    currentGridSize = size;
-                    Randomize();
+                if (size < 5) {
+                    currentGridSize = 5;  // Minimum size
+                } else if (size > 20) {
+                    currentGridSize = 20;  // Maximum size
                 } else {
-                    ResetToInitialSize();
+                    currentGridSize = size;
                 }
+                Randomize();
                 
                 showCustomGamePopup = false;
                 memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
@@ -723,12 +725,14 @@ bool Game::HandleMenuInput()
             }
             
             // Validate size
-            if (size >= 3 && size <= 30) {
-                currentGridSize = size;
-                Randomize();
+            if (size < 5) {
+                currentGridSize = 5;  // Minimum size
+            } else if (size > 20) {
+                currentGridSize = 20;  // Maximum size
             } else {
-                ResetToInitialSize();
+                currentGridSize = size;
             }
+            Randomize();
             
             showCustomGamePopup = false;
             memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
