@@ -408,7 +408,12 @@ void Game::Draw()
     
     // Draw game state message
     if (gameWon) {
-        const char* text = "You Won!";
+        const char* text;
+        if (currentGridSize == 20) {
+            text = "You Won! Congratulations, you beat the game!";
+        } else {
+            text = "You Won!";
+        }
         int fontSize = 40;
         int textWidth = MeasureText(text, fontSize);
         int padding = 20;
@@ -797,8 +802,8 @@ void Game::Randomize() {
 #ifdef DEBUG
         std::cout << "Randomizing game with grid size: " << currentGridSize << std::endl;
 #endif
-        // Only increase grid size if we won
-        if (gameWon) {
+        // Only increase grid size if we won and we're not at max size
+        if (gameWon && currentGridSize < 20) {
             currentGridSize++;
         }
         // Don't reset grid size on loss - keep the same size
