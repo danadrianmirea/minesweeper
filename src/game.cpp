@@ -234,7 +234,7 @@ void Game::DrawUI() {
             "3. Numbers show how many mines are adjacent to that cell",
             "4. When you lose, you can try again with the same grid size",
             "5. Try to reach and beat the 20x20 grid to complete the game!",
-            "6. Use both mouse buttons on a number to reveal adjacent cells"
+            "6. After marking the flags, use both mouse buttons on a number to reveal adjacent cells"
         };
         
         // Calculate maximum width needed
@@ -559,12 +559,15 @@ void Game::DrawMenuBar()
                            menuWidth, 25};
         DrawRectangleRec(newGameOptionRect, BLACK);
         DrawText(newGameText, newGameOptionRect.x + 10, newGameOptionRect.y + 2, 20, WHITE);
-        
-        // Draw Custom Game option
-        customGameOptionRect = {fileMenuRect.x, newGameOptionRect.y + newGameOptionRect.height,
-                              menuWidth, 25};
-        DrawRectangleRec(customGameOptionRect, BLACK);
-        DrawText(customGameText, customGameOptionRect.x + 10, customGameOptionRect.y + 2, 20, WHITE);
+
+        if(!isMobile)        
+        {
+            // Draw Custom Game option
+            customGameOptionRect = {fileMenuRect.x, newGameOptionRect.y + newGameOptionRect.height,
+                                menuWidth, 25};
+            DrawRectangleRec(customGameOptionRect, BLACK);
+            DrawText(customGameText, customGameOptionRect.x + 10, customGameOptionRect.y + 2, 20, WHITE);
+        }
 
 #ifndef __EMSCRIPTEN__
         // Draw Save Game option
@@ -690,23 +693,45 @@ bool Game::HandleMenuInput()
                 return true;
             }
         }
-        else if (showSavePopup && CheckCollisionPointRec({gameX, gameY}, okButtonRect)) {
-            // Save game state
-            std::string filename(filenameInput);
-            if (!filename.empty()) {
-                SaveGame(filename);
+        else if (showSavePopup)
+        {
+            // Click outside the popup to cancel
+            if (!CheckCollisionPointRec({gameX, gameY}, popupRect))
+            {
+                showSavePopup = false;
+                return true;
             }
-            showSavePopup = false;
-            return true;
+            // Click OK button to save
+            else if (CheckCollisionPointRec({gameX, gameY}, okButtonRect))
+            {
+                // Save game state
+                std::string filename(filenameInput);
+                if (!filename.empty()) {
+                    SaveGame(filename);
+                }
+                showSavePopup = false;
+                return true;
+            }
         }
-        else if (showLoadPopup && CheckCollisionPointRec({gameX, gameY}, okButtonRect)) {
-            // Load game state
-            std::string filename(filenameInput);
-            if (!filename.empty()) {
-                LoadGame(filename);
+        else if (showLoadPopup)
+        {
+            // Click outside the popup to cancel
+            if (!CheckCollisionPointRec({gameX, gameY}, popupRect))
+            {
+                showLoadPopup = false;
+                return true;
             }
-            showLoadPopup = false;
-            return true;
+            // Click OK button to load
+            else if (CheckCollisionPointRec({gameX, gameY}, okButtonRect))
+            {
+                // Load game state
+                std::string filename(filenameInput);
+                if (!filename.empty()) {
+                    LoadGame(filename);
+                }
+                showLoadPopup = false;
+                return true;
+            }
         }
         else if (showCustomGamePopup)
         {
