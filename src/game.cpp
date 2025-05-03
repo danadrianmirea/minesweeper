@@ -745,8 +745,9 @@ bool Game::HandleMenuInput()
                 return true;
             }
         }
-        else if (showHelpPopup && CheckCollisionPointRec({gameX, gameY}, okButtonRect))
+        else if (showHelpPopup)
         {
+            // Click anywhere to dismiss the help popup
             showHelpPopup = false;
             return true;
         }
