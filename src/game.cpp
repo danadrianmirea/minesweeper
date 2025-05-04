@@ -37,6 +37,7 @@ Game::Game(int screenWidth, int screenHeight)
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     });
 #endif
+    currentGridSize = isMobile ? MOBILE_INITIAL_GRID_SIZE : DESKTOP_INITIAL_GRID_SIZE;
     screenScale = MIN((float)GetScreenWidth() / gameScreenWidth, (float)GetScreenHeight() / gameScreenHeight);
     targetRenderTex = LoadRenderTexture(gameScreenWidth, gameScreenHeight);
     SetTextureFilter(targetRenderTex.texture, TEXTURE_FILTER_BILINEAR); // Texture scale filter to use
@@ -283,7 +284,7 @@ void Game::DrawUI() {
             "1. The four corner cells are always safe - no mines there!",
             "2. Numbers show how many mines are adjacent to that cell",
             "3. When you lose, you can try again with the same grid size",
-            "4. Try to reach and beat the 20x20 grid to complete the game!",
+            "4. Try to reach and beat the 8x8 grid to complete the game!",
             "5. Tap a cell to reveal it",
             "6. Hold a cell for 0.3s to place/remove a flag",
             "7. Tap a numbered cell to reveal adjacent cells"
@@ -525,7 +526,7 @@ void Game::Draw()
         if (currentGridSize == maxSize) {
             text = "You Won! Congratulations, you beat the game!";
         } else {
-            text = "You Won!";
+            text = isMobile ? "You Won! Tap to continue to next level" : "You Won! Click to continue to next level";
         }
         int fontSize = 40;
         int textWidth = MeasureText(text, fontSize);
