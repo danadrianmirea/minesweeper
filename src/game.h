@@ -83,6 +83,8 @@ private:
     bool gameOver;
     bool gameWon;
     float gameOverTextTimer;  // Timer for game over text display
+    bool waitingForNextLevel;  // Track if we're waiting for player input after winning
+    bool waitingForGameOver;  // Track if we're waiting for player input after losing
 
     float screenScale;
     RenderTexture2D targetRenderTex;

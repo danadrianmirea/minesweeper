@@ -26,7 +26,7 @@ Game::Game(int screenWidth, int screenHeight)
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
       gameTime(0.0f), remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
       filenameInputLength(0), isTapping(false), tapStartTime(0.0f), tapStartPos({0, 0}), tapRow(-1), tapCol(-1),
-      longTapPerformed(false)
+      longTapPerformed(false), waitingForNextLevel(false), waitingForGameOver(false)
 {
 #ifdef DEBUG
     std::cout << "Game constructor: Initializing with screen size " << screenWidth << "x" << screenHeight << std::endl;
@@ -73,6 +73,11 @@ void Game::Update(float dt)
 
         // If help popup or custom game popup is shown, ignore all game input
         if (showHelpPopup || showCustomGamePopup || showSavePopup || showLoadPopup) {
+            return;
+        }
+
+        // If waiting for next level or game over input, don't process other game input
+        if (waitingForNextLevel || waitingForGameOver) {
             return;
         }
 
@@ -674,6 +679,18 @@ bool Game::HandleMenuInput()
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
+        // Handle waiting for next level input
+        if (waitingForNextLevel) {
+            Randomize();
+            return true;
+        }
+
+        // Handle waiting for game over input
+        if (waitingForGameOver) {
+            Randomize();
+            return true;
+        }
+
         // Handle welcome popup - click anywhere to dismiss
         if (showWelcomePopup) {
             showWelcomePopup = false;
@@ -969,6 +986,8 @@ void Game::Randomize() {
         gameWon = false;
         gameOverTextTimer = 0.0f;  // Reset game over text timer
         gameTime = 0.0f;  // Reset timer
+        waitingForNextLevel = false;  // Reset waiting state
+        waitingForGameOver = false;  // Reset game over waiting state
         
         // Update scaling to adjust view for new grid size
         UpdateScaling();
@@ -1098,6 +1117,7 @@ void Game::RevealCell(int row, int col) {
 #endif
             gameOver = true;
             gameWon = false;
+            waitingForGameOver = true;  // Set flag to wait for player input
             RevealAllMines();
             return;
         }
@@ -1180,6 +1200,7 @@ void Game::CheckWinCondition() {
     if (remainingCells == 0) {
         gameOver = true;
         gameWon = true;
+        waitingForNextLevel = true;  // Set flag to wait for player input
     }
 }
 
