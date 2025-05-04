@@ -24,7 +24,7 @@ Game::Game(int screenWidth, int screenHeight)
       gameOverTextTimer(0.0f),  // Initialize game over text timer
       isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
-      gameTime(0.0f), remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
+      gameTime(0.0f), remainingMines(0), currentGridSize(isMobile ? MOBILE_INITIAL_GRID_SIZE : DESKTOP_INITIAL_GRID_SIZE), customGridSizeInputLength(0),
       filenameInputLength(0), isTapping(false), tapStartTime(0.0f), tapStartPos({0, 0}), tapRow(-1), tapCol(-1),
       longTapPerformed(false), waitingForNextLevel(false), waitingForGameOver(false)
 {
@@ -521,7 +521,8 @@ void Game::Draw()
     // Draw game state message
     if (gameWon) {
         const char* text;
-        if (currentGridSize == 20) {
+        int maxSize = isMobile ? MOBILE_MAX_GRID_SIZE : DESKTOP_MAX_GRID_SIZE;
+        if (currentGridSize == maxSize) {
             text = "You Won! Congratulations, you beat the game!";
         } else {
             text = "You Won!";
@@ -970,7 +971,8 @@ void Game::Randomize() {
         std::cout << "Randomizing game with grid size: " << currentGridSize << std::endl;
 #endif
         // Only increase grid size if we won and we're not at max size
-        if (gameWon && currentGridSize < 20) {
+        int maxSize = isMobile ? MOBILE_MAX_GRID_SIZE : DESKTOP_MAX_GRID_SIZE;
+        if (gameWon && currentGridSize < maxSize) {
             currentGridSize++;
         }
         // Don't reset grid size on loss - keep the same size
@@ -1407,7 +1409,7 @@ void Game::RevealAdjacentCells(int row, int col)
 }
 
 void Game::ResetToInitialSize() {
-    currentGridSize = INITIAL_GRID_SIZE;
+    currentGridSize = isMobile ? MOBILE_INITIAL_GRID_SIZE : DESKTOP_INITIAL_GRID_SIZE;
     Randomize();
 }
 

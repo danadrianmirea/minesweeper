@@ -111,7 +111,10 @@ private:
     Texture2D backgroundTexture;  // Background texture
 
     int currentGridSize;  // Track current grid size
-    static const int INITIAL_GRID_SIZE = 5;  // Starting grid size
+    static const int DESKTOP_INITIAL_GRID_SIZE = 5;  // Starting grid size for desktop
+    static const int MOBILE_INITIAL_GRID_SIZE = 8;   // Starting grid size for mobile
+    static const int DESKTOP_MAX_GRID_SIZE = 20;     // Maximum grid size for desktop
+    static const int MOBILE_MAX_GRID_SIZE = 8;       // Maximum grid size for mobile
     int CalculateMineCount() const;  // Calculate mines based on grid size
 
     // Mobile tap constants
