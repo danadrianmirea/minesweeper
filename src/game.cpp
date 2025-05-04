@@ -266,7 +266,7 @@ void Game::DrawUI() {
         // Calculate text measurements
         const char* title = "Welcome to Minesweeper!";
         const char* welcomeText = "Here are some tips to help you get started:";
-        const char* tips[] = {
+        const char* desktopTips[] = {
             "1. The four corner cells are always safe - no mines there!",
             "2. Left-click to reveal a cell, right-click to place/remove a flag",
             "3. Numbers show how many mines are adjacent to that cell",
@@ -274,11 +274,22 @@ void Game::DrawUI() {
             "5. Try to reach and beat the 20x20 grid to complete the game!",
             "6. After marking the flags, use both mouse buttons on a number to reveal adjacent cells"
         };
+        const char* mobileTips[] = {
+            "1. The four corner cells are always safe - no mines there!",
+            "2. Numbers show how many mines are adjacent to that cell",
+            "3. When you lose, you can try again with the same grid size",
+            "4. Try to reach and beat the 20x20 grid to complete the game!",
+            "5. Tap a cell to reveal it",
+            "6. Hold a cell for 0.3s to place/remove a flag",
+            "7. Tap a numbered cell to reveal adjacent cells"
+        };
+        const char** tips = isMobile ? mobileTips : desktopTips;
+        const int numTips = isMobile ? 7 : 6;
         
         // Calculate maximum width needed
         int maxWidth = MeasureText(title, 24);
         maxWidth = MAX(maxWidth, MeasureText(welcomeText, 20));
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < numTips; i++) {
             maxWidth = MAX(maxWidth, MeasureText(tips[i], 20));
         }
         
@@ -286,7 +297,7 @@ void Game::DrawUI() {
         const int padding = 30;
         const int lineHeight = 35;
         const int popupWidth = maxWidth + padding * 2;
-        const int popupHeight = 400;  // Fixed height is fine since we have fixed number of lines
+        const int popupHeight = isMobile ? 450 : 400;  // Increase height for mobile to accommodate extra tip
         
         // Draw popup background
         popupRect = {(float)(gameScreenWidth - popupWidth) / 2, (float)(gameScreenHeight - popupHeight) / 2,
@@ -301,7 +312,7 @@ void Game::DrawUI() {
         DrawText(welcomeText, popupRect.x + padding, popupRect.y + 80, 20, BLACK);
         
         // Draw tips
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < numTips; i++) {
             DrawText(tips[i], popupRect.x + padding, popupRect.y + 120 + i * lineHeight, 20, BLACK);
         }
         
@@ -309,7 +320,7 @@ void Game::DrawUI() {
         const char* okText = "Let's Play!";
         int okTextWidth = MeasureText(okText, 20);
         okButtonRect = {(float)(popupRect.x + (popupWidth - (okTextWidth + 40)) / 2),  // Center with extra padding
-                       (float)(popupRect.y + popupHeight - 60), 
+                       (float)(popupRect.y + popupHeight - (isMobile ? 80 : 60)),  // Move button up by 50px for mobile
                        (float)(okTextWidth + 40),  // Add 40 pixels padding (20 on each side)
                        30.0f};
         DrawRectangleRec(okButtonRect, GRAY);
