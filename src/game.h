@@ -57,6 +57,14 @@ private:
     int customGridSizeInputLength;  // Track input length
     int filenameInputLength;        // Track filename input length
 
+    // Mobile tap tracking
+    bool isTapping;
+    float tapStartTime;
+    Vector2 tapStartPos;
+    int tapRow;
+    int tapCol;
+    bool longTapPerformed;  // Track if long tap action has been performed
+
     void InitializeGrid();
     void PlaceMines();
     void CalculateAdjacentMines();
@@ -103,6 +111,9 @@ private:
     int currentGridSize;  // Track current grid size
     static const int INITIAL_GRID_SIZE = 5;  // Starting grid size
     int CalculateMineCount() const;  // Calculate mines based on grid size
+
+    // Mobile tap constants
+    static const float LONG_TAP_THRESHOLD;  // Time in seconds for long tap
 
     // Save/Load functions
     bool SaveGame(const std::string& filename);

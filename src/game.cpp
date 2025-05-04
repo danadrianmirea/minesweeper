@@ -15,6 +15,8 @@
 #include <emscripten.h>
 #endif
 
+const float Game::LONG_TAP_THRESHOLD = 0.3f;
+
 bool Game::isMobile = false;
 
 Game::Game(int screenWidth, int screenHeight)
@@ -23,7 +25,8 @@ Game::Game(int screenWidth, int screenHeight)
       isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
       gameTime(0.0f), remainingMines(0), currentGridSize(INITIAL_GRID_SIZE), customGridSizeInputLength(0),
-      filenameInputLength(0)
+      filenameInputLength(0), isTapping(false), tapStartTime(0.0f), tapStartPos({0, 0}), tapRow(-1), tapCol(-1),
+      longTapPerformed(false)
 {
 #ifdef DEBUG
     std::cout << "Game constructor: Initializing with screen size " << screenWidth << "x" << screenHeight << std::endl;
@@ -99,78 +102,113 @@ void Game::Update(float dt)
             UpdateScaling();
         }
 
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !menuHandledClick) {
-            Vector2 mousePos = GetMousePosition();
-            
-            // Convert screen coordinates to game coordinates
-            float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
-            float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
-            
-            // Skip click handling if in menu bar area
-            if (gameY < 30) return;
-            
-            // Calculate grid position
-            int col = (gameX - gridOffset.x) / cellSize;
-            int row = (gameY - gridOffset.y) / cellSize;
+        Vector2 mousePos = GetMousePosition();
+        
+        // Convert screen coordinates to game coordinates
+        float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
+        float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
+        
+        // Skip click handling if in menu bar area
+        if (gameY < 30) return;
+        
+        // Calculate grid position
+        int col = (gameX - gridOffset.x) / cellSize;
+        int row = (gameY - gridOffset.y) / cellSize;
 
+        // Check if click is within the game grid
+        bool isInGrid = (gameX >= gridOffset.x && gameX < gridOffset.x + currentGridSize * cellSize &&
+                        gameY >= gridOffset.y && gameY < gridOffset.y + currentGridSize * cellSize);
+
+        if (gameOver) {
+            // If game is over, any click in the game area starts a new game
+            if (isInGrid) {
 #ifdef DEBUG
-            std::cout << "Left click at grid position: row=" << row << ", col=" << col << std::endl;
+                std::cout << "Starting new game after game over" << std::endl;
 #endif
-
-            // Check if click is within the game grid
-            bool isInGrid = (gameX >= gridOffset.x && gameX < gridOffset.x + currentGridSize * cellSize &&
-                            gameY >= gridOffset.y && gameY < gridOffset.y + currentGridSize * cellSize);
-
-            if (gameOver) {
-                // If game is over, any click in the game area starts a new game
-                if (isInGrid) {
-#ifdef DEBUG
-                    std::cout << "Starting new game after game over" << std::endl;
-#endif
-                    Randomize();
-                }
-                return;
+                Randomize();
             }
+            return;
+        }
 
-            if (IsValidCell(row, col)) {
-                if (grid[row][col].state == CellState::HIDDEN) {
-                    RevealCell(row, col);
-                }
-                else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
-                    // Check if right button is also pressed
-                    if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+        if (isMobile) {
+            // Handle mobile tap controls
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !menuHandledClick && isInGrid) {
+                // Start tracking tap
+                isTapping = true;
+                tapStartTime = gameTime;
+                tapStartPos = mousePos;
+                tapRow = row;
+                tapCol = col;
+                longTapPerformed = false;
+            }
+            else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && isTapping) {
+                // End tap
+                isTapping = false;
+                
+                // Check if tap was in the same cell
+                if (tapRow == row && tapCol == col && IsValidCell(row, col)) {
+                    float tapDuration = gameTime - tapStartTime;
+                    
+                    if (grid[row][col].state == CellState::HIDDEN) {
+                        if (tapDuration < LONG_TAP_THRESHOLD) {
+                            // Short tap - reveal cell
+                            RevealCell(row, col);
+                        }
+                    } else if (grid[row][col].state == CellState::FLAGGED) {
+                        if (tapDuration >= LONG_TAP_THRESHOLD && !longTapPerformed) {
+                            // Long tap on flagged cell - unflag it
+                            grid[row][col].state = CellState::HIDDEN;
+                        }
+                    } else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
+                        // Tap on numbered cell - reveal adjacent cells
                         RevealAdjacentCells(row, col);
                     }
                 }
             }
-        }
-        else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !menuHandledClick) {
-            if (gameOver) return;
-
-            Vector2 mousePos = GetMousePosition();
-            
-            // Convert screen coordinates to game coordinates
-            float gameX = (mousePos.x - (GetScreenWidth() - (gameScreenWidth * scale)) * 0.5f) / scale;
-            float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
-            
-            // Skip click handling if in menu bar area
-            if (gameY < 30) return;
-            
-            // Calculate grid position
-            int col = (gameX - gridOffset.x) / cellSize;
-            int row = (gameY - gridOffset.y) / cellSize;
-
-            if (IsValidCell(row, col)) {
-                if (grid[row][col].state == CellState::HIDDEN) {
-                    grid[row][col].state = CellState::FLAGGED;
+            else if (isTapping && IsValidCell(tapRow, tapCol)) {
+                // Check if we're still holding the tap
+                float tapDuration = gameTime - tapStartTime;
+                
+                if (tapDuration >= LONG_TAP_THRESHOLD && !longTapPerformed) {
+                    if (grid[tapRow][tapCol].state == CellState::HIDDEN) {
+                        // Show flag when timer expires on hidden cell
+                        grid[tapRow][tapCol].state = CellState::FLAGGED;
+                        longTapPerformed = true;
+                    } else if (grid[tapRow][tapCol].state == CellState::FLAGGED) {
+                        // Remove flag when timer expires on flagged cell
+                        grid[tapRow][tapCol].state = CellState::HIDDEN;
+                        longTapPerformed = true;
+                    }
                 }
-                else if (grid[row][col].state == CellState::FLAGGED) {
-                    grid[row][col].state = CellState::HIDDEN;
+            }
+        } else {
+            // Desktop controls
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !menuHandledClick) {
+                if (IsValidCell(row, col)) {
+                    if (grid[row][col].state == CellState::HIDDEN) {
+                        RevealCell(row, col);
+                    }
+                    else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
+                        // Check if right button is also pressed
+                        if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+                            RevealAdjacentCells(row, col);
+                        }
+                    }
                 }
-                else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
-                    // Check if left button is also pressed
-                    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-                        RevealAdjacentCells(row, col);
+            }
+            else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && !menuHandledClick) {
+                if (IsValidCell(row, col)) {
+                    if (grid[row][col].state == CellState::HIDDEN) {
+                        grid[row][col].state = CellState::FLAGGED;
+                    }
+                    else if (grid[row][col].state == CellState::FLAGGED) {
+                        grid[row][col].state = CellState::HIDDEN;
+                    }
+                    else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
+                        // Check if left button is also pressed
+                        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                            RevealAdjacentCells(row, col);
+                        }
                     }
                 }
             }
