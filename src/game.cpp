@@ -26,7 +26,7 @@ Game::Game(int screenWidth, int screenHeight)
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
       gameTime(0.0f), remainingMines(0), currentGridSize(isMobile ? MOBILE_INITIAL_GRID_SIZE : DESKTOP_INITIAL_GRID_SIZE), customGridSizeInputLength(0),
       filenameInputLength(0), isTapping(false), tapStartTime(0.0f), tapStartPos({0, 0}), tapRow(-1), tapCol(-1),
-      longTapPerformed(false), waitingForNextLevel(false), waitingForGameOver(false)
+      longTapPerformed(false), waitingForNextLevel(false), waitingForGameOver(false), isMusicPlaying(false)
 {
 #ifdef DEBUG
     std::cout << "Game constructor: Initializing with screen size " << screenWidth << "x" << screenHeight << std::endl;
@@ -54,6 +54,19 @@ Game::Game(int screenWidth, int screenHeight)
     // Initialize custom grid size input buffer
     memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
     memset(filenameInput, 0, sizeof(filenameInput));
+
+    // Load and setup background music
+    backgroundMusic = LoadMusicStream("data/music.mp3");
+    SetMusicVolume(backgroundMusic, MUSIC_VOLUME);
+    PlayMusicStream(backgroundMusic);
+    isMusicPlaying = true;
+
+    // Load sound effects
+    hitSound = LoadSound("data/hit.mp3");
+    actionSound = LoadSound("data/action.mp3");
+    SetSoundVolume(hitSound, 0.7f);    // 70% volume for hit sound
+    SetSoundVolume(actionSound, 0.5f); // 50% volume for action sound
+
 #ifdef DEBUG
     std::cout << "Game constructor: Initialization complete" << std::endl;
 #endif
@@ -64,6 +77,10 @@ Game::~Game()
     UnloadTextures();
     UnloadRenderTexture(targetRenderTex);
     UnloadFont(font);
+    StopMusicStream(backgroundMusic);
+    UnloadMusicStream(backgroundMusic);
+    UnloadSound(hitSound);
+    UnloadSound(actionSound);
 }
 
 void Game::Update(float dt)
@@ -71,6 +88,22 @@ void Game::Update(float dt)
     try {
         UpdateUI();
         bool menuHandledClick = HandleMenuInput();
+
+        // Update music - only pause during welcome screen
+        if (isMusicPlaying && showWelcomePopup)
+        {
+            PauseMusicStream(backgroundMusic);
+            isMusicPlaying = false;
+        }
+        else if (!isMusicPlaying && !showWelcomePopup)
+        {
+            ResumeMusicStream(backgroundMusic);
+            isMusicPlaying = true;
+        }
+        else if (isMusicPlaying)
+        {
+            UpdateMusicStream(backgroundMusic);
+        }
 
         // If help popup or custom game popup is shown, ignore all game input
         if (showHelpPopup || showCustomGamePopup || showSavePopup || showLoadPopup) {
@@ -206,9 +239,11 @@ void Game::Update(float dt)
                 if (IsValidCell(row, col)) {
                     if (grid[row][col].state == CellState::HIDDEN) {
                         grid[row][col].state = CellState::FLAGGED;
+                        PlaySound(actionSound);  // Play action sound for flagging
                     }
                     else if (grid[row][col].state == CellState::FLAGGED) {
                         grid[row][col].state = CellState::HIDDEN;
+                        PlaySound(actionSound);  // Play action sound for unflagging
                     }
                     else if (grid[row][col].state == CellState::REVEALED && grid[row][col].adjacentMines > 0) {
                         // Check if left button is also pressed
@@ -1121,12 +1156,15 @@ void Game::RevealCell(int row, int col) {
 #ifdef DEBUG
             std::cout << "Mine hit at row=" << row << ", col=" << col << std::endl;
 #endif
+            PlaySound(hitSound);  // Play hit sound when mine is revealed
             gameOver = true;
             gameWon = false;
             waitingForGameOver = true;  // Set flag to wait for player input
             RevealAllMines();
             return;
         }
+
+        PlaySound(actionSound);  // Play action sound for successful reveal
 
         if (grid[row][col].adjacentMines == 0) {
             for (int dr = -1; dr <= 1; ++dr) {
@@ -1145,10 +1183,6 @@ void Game::RevealCell(int row, int col) {
     } catch (const std::exception& e) {
 #ifdef DEBUG
         std::cerr << "Exception in RevealCell: " << e.what() << " at row=" << row << ", col=" << col << std::endl;
-#endif
-    } catch (...) {
-#ifdef DEBUG
-        std::cerr << "Unknown exception in RevealCell at row=" << row << ", col=" << col << std::endl;
 #endif
     }
 }

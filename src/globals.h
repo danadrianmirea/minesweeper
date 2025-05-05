@@ -2,7 +2,7 @@
 #include <raylib.h>
 
 // Debug flag - comment out to disable debug logging
-//#define DEBUG
+#define DEBUG
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -27,6 +27,7 @@ extern const int offset;
 const int GRID_SIZE = 8;
 const int CELL_SIZE = 50;
 const int NUM_MINES = 10;
+const float MUSIC_VOLUME = 0.33f;
 
 // Cell states
 enum class CellState {

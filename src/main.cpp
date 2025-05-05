@@ -18,6 +18,7 @@ void mainLoop()
 int main()
 {
     InitWindow(gameScreenWidth, gameScreenHeight, "Minesweeper");
+    InitAudioDevice();  // Initialize audio device
 #ifndef EMSCRIPTEN_BUILD
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 #endif
@@ -34,6 +35,7 @@ int main()
         mainLoop();
     }
     delete game;
+    CloseAudioDevice();  // Close audio device
     CloseWindow();
 #endif
 

@@ -110,6 +110,12 @@ private:
     Texture2D numberTextures[8]; // 1-8
     Texture2D backgroundTexture;  // Background texture
 
+    // Audio
+    Music backgroundMusic;
+    Sound hitSound;      // Sound for hitting a mine
+    Sound actionSound;   // Sound for clicks and flag actions
+    bool isMusicPlaying;
+
     int currentGridSize;  // Track current grid size
     static const int DESKTOP_INITIAL_GRID_SIZE = 5;  // Starting grid size for desktop
     static const int MOBILE_INITIAL_GRID_SIZE = 3;   // Starting grid size for mobile
