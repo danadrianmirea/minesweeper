@@ -502,7 +502,7 @@ void Game::DrawUI() {
     DrawMenuBar();
 }
 
-void Game::Draw()
+void Game::Draw(float dt)
 {
     // Update scale based on current window size
     scale = MIN((float)GetScreenWidth() / gameScreenWidth, (float)GetScreenHeight() / gameScreenHeight);
@@ -541,8 +541,8 @@ void Game::Draw()
         // Draw text
         DrawText(text, (gameScreenWidth - textWidth) / 2, gameScreenHeight / 2 - fontSize / 2, fontSize, WHITE);
     }
-    else if (gameOver && gameOverTextTimer < 2.0f) {  // Only show text for 2 seconds
-        const char* text = "You lost! Click to try again";
+    else if (gameOver && !gameWon) {
+        const char* text = isMobile ? "You lost! Tap to try again" : "You lost! Click to try again";
         int fontSize = 40;
         int textWidth = MeasureText(text, fontSize);
         int padding = 20;
@@ -555,6 +555,9 @@ void Game::Draw()
         DrawRectangleRounded((Rectangle){(float)rectX, (float)rectY, (float)rectWidth, (float)rectHeight}, 0.3f, 8, BLACK);
         // Draw text
         DrawText(text, (gameScreenWidth - textWidth) / 2, gameScreenHeight / 2 - fontSize / 2, fontSize, WHITE);
+        
+        // Update timer for text fade effect
+        gameOverTextTimer += dt;
     }
 
     DrawUI();
@@ -1378,6 +1381,7 @@ void Game::RevealAdjacentCells(int row, int col)
                 // Reveal only the neighboring mines to show the mistake
                 RevealNeighboringMines(row, col);
                 gameOver = true;
+                waitingForGameOver = true;  // Set flag to wait for player input
                 return;
             }
 
@@ -1395,6 +1399,7 @@ void Game::RevealAdjacentCells(int row, int col)
                             // Hit a mine - reveal only neighboring mines
                             RevealNeighboringMines(newRow, newCol);
                             gameOver = true;
+                            waitingForGameOver = true;  // Set flag to wait for player input
                             return;
                         }
                         RevealCell(newRow, newCol);

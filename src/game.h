@@ -14,7 +14,7 @@ public:
     void HandleInput();
     void UpdateUI();
 
-    void Draw();
+    void Draw(float dt);
     void DrawUI();
     std::string FormatWithLeadingZeroes(int number, int width);
     void Randomize();

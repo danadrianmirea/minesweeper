@@ -12,7 +12,7 @@ void mainLoop()
 {
     float dt = GetFrameTime();
     game->Update(dt);
-    game->Draw();
+    game->Draw(dt);
 }
 
 int main()
