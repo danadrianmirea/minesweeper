@@ -16,7 +16,3 @@ const int minimizeOffset = 20;
 float borderOffsetWidth = 0.0f;
 float borderOffsetHeight = 0.0f;
 const int offset = 10;
-
-// Game elements
-const char* BOMB_CHAR = "X";
-const char* FLAG_CHAR = "F";

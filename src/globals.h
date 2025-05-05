@@ -28,10 +28,6 @@ const int GRID_SIZE = 8;
 const int CELL_SIZE = 50;
 const int NUM_MINES = 10;
 
-// Game elements
-extern const char* BOMB_CHAR;
-extern const char* FLAG_CHAR;
-
 // Cell states
 enum class CellState {
     HIDDEN,
