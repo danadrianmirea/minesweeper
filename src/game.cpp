@@ -258,10 +258,6 @@ void Game::Update(float dt)
 #ifdef DEBUG
         std::cerr << "Exception in Game::Update: " << e.what() << std::endl;
 #endif
-    } catch (...) {
-#ifdef DEBUG
-        std::cerr << "Unknown exception in Game::Update" << std::endl;
-#endif
     }
 }
 
@@ -719,6 +715,57 @@ bool Game::HandleMenuInput()
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
+        // Handle custom game popup first
+        if (showCustomGamePopup) {
+            if (CheckCollisionPointRec({gameX, gameY}, okButtonRect)) {
+                // Only process if there's actual input
+                if (customGridSizeInputLength > 0) {
+                    // Parse custom grid size
+                    std::string input(customGridSizeInput);
+                    int size = 0;
+                    
+                    // Check for NxN format
+                    size_t xPos = input.find('x');
+                    if (xPos != std::string::npos) {
+                        input = input.substr(0, xPos);
+                    }
+                    
+                    // Try to convert to number
+                    try {
+                        size = std::stoi(input);
+                    } catch (...) {
+                        size = 0;
+                    }
+                    
+                    // Validate size
+                    if (size < 5) {
+                        currentGridSize = 5;  // Minimum size
+                    } else if (size > 20) {
+                        currentGridSize = 20;  // Maximum size
+                    } else {
+                        currentGridSize = size;
+                    }
+                    Randomize();
+                }
+                
+                showCustomGamePopup = false;
+                memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
+                customGridSizeInputLength = 0;
+                return true;
+            }
+            // Click outside the popup to cancel
+            else if (!CheckCollisionPointRec({gameX, gameY}, popupRect)) {
+                showCustomGamePopup = false;
+                memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
+                customGridSizeInputLength = 0;
+                return true;
+            }
+            // Click inside popup but not on OK button
+            else {
+                return true;
+            }
+        }
+
         // Handle waiting for next level input
         if (waitingForNextLevel) {
             Randomize();
@@ -839,43 +886,6 @@ bool Game::HandleMenuInput()
                 return true;
             }
         }
-        else if (showCustomGamePopup)
-        {
-            if (CheckCollisionPointRec({gameX, gameY}, okButtonRect))
-            {
-                // Parse custom grid size
-                std::string input(customGridSizeInput);
-                int size = 0;
-                
-                // Check for NxN format
-                size_t xPos = input.find('x');
-                if (xPos != std::string::npos) {
-                    input = input.substr(0, xPos);
-                }
-                
-                // Try to convert to number
-                try {
-                    size = std::stoi(input);
-                } catch (...) {
-                    size = 0;
-                }
-                
-                // Validate size
-                if (size < 5) {
-                    currentGridSize = 5;  // Minimum size
-                } else if (size > 20) {
-                    currentGridSize = 20;  // Maximum size
-                } else {
-                    currentGridSize = size;
-                }
-                Randomize();
-                
-                showCustomGamePopup = false;
-                memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
-                customGridSizeInputLength = 0;
-                return true;
-            }
-        }
         else if (showHelpPopup)
         {
             // Click anywhere to dismiss the help popup
@@ -919,32 +929,35 @@ bool Game::HandleMenuInput()
         
         // Handle enter key
         if (IsKeyPressed(KEY_ENTER)) {
-            // Parse custom grid size
-            std::string input(customGridSizeInput);
-            int size = 0;
-            
-            // Check for NxN format
-            size_t xPos = input.find('x');
-            if (xPos != std::string::npos) {
-                input = input.substr(0, xPos);
+            // Only process if there's actual input
+            if (customGridSizeInputLength > 0) {
+                // Parse custom grid size
+                std::string input(customGridSizeInput);
+                int size = 0;
+                
+                // Check for NxN format
+                size_t xPos = input.find('x');
+                if (xPos != std::string::npos) {
+                    input = input.substr(0, xPos);
+                }
+                
+                // Try to convert to number
+                try {
+                    size = std::stoi(input);
+                } catch (...) {
+                    size = 0;
+                }
+                
+                // Validate size
+                if (size < 5) {
+                    currentGridSize = 5;  // Minimum size
+                } else if (size > 20) {
+                    currentGridSize = 20;  // Maximum size
+                } else {
+                    currentGridSize = size;
+                }
+                Randomize();
             }
-            
-            // Try to convert to number
-            try {
-                size = std::stoi(input);
-            } catch (...) {
-                size = 0;
-            }
-            
-            // Validate size
-            if (size < 5) {
-                currentGridSize = 5;  // Minimum size
-            } else if (size > 20) {
-                currentGridSize = 20;  // Maximum size
-            } else {
-                currentGridSize = size;
-            }
-            Randomize();
             
             showCustomGamePopup = false;
             memset(customGridSizeInput, 0, sizeof(customGridSizeInput));
@@ -979,7 +992,6 @@ bool Game::HandleMenuInput()
                     SaveGame(filename);
                 }
                 showSavePopup = false;
-                return true;
             }
             else if (showLoadPopup) {
                 // Load game state
@@ -988,8 +1000,8 @@ bool Game::HandleMenuInput()
                     LoadGame(filename);
                 }
                 showLoadPopup = false;
-                return true;
             }
+            return true;
         }
     }
     
