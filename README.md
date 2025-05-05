@@ -1,15 +1,14 @@
-# Raylib Game Template
+# Raylib Minesweeper
 
-A modern, cross-platform game template built with raylib, supporting both desktop and web builds. This template serves as a foundation for creating games that can be deployed to multiple platforms, including itch.io.
+A modern implementation of the classic Minesweeper game built with raylib, supporting both desktop and web platforms. This project combines the timeless gameplay of Minesweeper with modern graphics and responsive design.
 
 ## Features
 
-- **Cross-Platform Support**: Build for desktop and web platforms
+- **Classic Minesweeper Gameplay**: Traditional minesweeper mechanics with a modern twist
+- **Cross-Platform Support**: Play on desktop or in your web browser
 - **Responsive Design**: Dynamic resizing support for desktop, web, and mobile web
-- **Render to Texture**: Advanced rendering approach for consistent visuals across platforms
-- **Automated Builds**: Automatic zip generation for easy itch.io deployment
-- **CMake Integration**: Modern build system for desktop platforms
-- **Emscripten Support**: Web builds via Emscripten
+- **Modern Graphics**: Clean and polished visual design
+- **Automated Builds**: Easy deployment to itch.io or other platforms
 
 ## Building the Project
 
@@ -52,21 +51,18 @@ This will:
 - `build_web.sh`: Web build script
 - `custom_shell.html`: Custom HTML shell for web builds
 
-## Deployment
+## How to Play
 
-### itch.io Deployment
-
-The build system automatically generates zip files:
-- Desktop builds: Located in the `build` directory
-- Web builds: `web-build.zip` is created after running `build_web.sh`
-
-These zip files can be directly uploaded to itch.io for distribution.
+1. Left-click to reveal a cell
+2. Right-click to flag a potential mine
+3. Clear all non-mine cells to win
+4. Avoid clicking on mines!
 
 ## Technical Details
 
 ### Render to Texture Approach
 
-The template uses a render-to-texture approach to ensure:
+The game uses a render-to-texture approach to ensure:
 - Consistent visuals across different screen sizes
 - Proper scaling on mobile devices
 - Smooth resizing on desktop platforms
@@ -81,4 +77,4 @@ The game automatically handles:
 
 ## License
 
-This project is licensed under the terms specified in the `LICENSE.txt` file."# raylib_minesweeper" 
+This project is licensed under the terms specified in the `LICENSE.txt` file.
