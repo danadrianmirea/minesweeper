@@ -600,119 +600,119 @@ void Game::Draw(float dt)
 void Game::DrawMenuBar()
 {
     // Draw menu bar background
-    DrawRectangle(0, 0, gameScreenWidth, 30, BLACK);
+    DrawRectangle(0, 0, gameScreenWidth, 45, BLACK);
     
     // Draw File menu
     const char* fileText = "File";
-    int textWidth = MeasureText(fileText, 20);
-    fileMenuRect = {110, 5, (float)textWidth + 20, 20};
+    int textWidth = MeasureText(fileText, 30);  // Increased font size from 20 to 30
+    fileMenuRect = {110, 7, (float)textWidth + 30, 30};  // Increased height from 20 to 30, added more padding
     
     // Draw File menu button
     Color fileButtonColor = isFileMenuOpen ? DARKGRAY : BLACK;
     DrawRectangleRec(fileMenuRect, fileButtonColor);
-    DrawText(fileText, 120, 5, 20, WHITE);
+    DrawText(fileText, 120, 7, 30, WHITE);  // Increased font size from 20 to 30
     
     // Draw File menu dropdown if open
     if (isFileMenuOpen)
     {
         const char* newGameText = "New Game";
         const char* customGameText = "Custom Game";
-        int newGameTextWidth = MeasureText(newGameText, 20);
-        int customGameTextWidth = MeasureText(customGameText, 20);
+        int newGameTextWidth = MeasureText(newGameText, 30);  // Increased font size
+        int customGameTextWidth = MeasureText(customGameText, 30);  // Increased font size
         
 #ifndef __EMSCRIPTEN__
         const char* saveGameText = "Save Game";
         const char* loadGameText = "Load Game";
         const char* quitText = "Quit";
-        int saveGameTextWidth = MeasureText(saveGameText, 20);
-        int loadGameTextWidth = MeasureText(loadGameText, 20);
-        int quitTextWidth = MeasureText(quitText, 20);
+        int saveGameTextWidth = MeasureText(saveGameText, 30);  // Increased font size
+        int loadGameTextWidth = MeasureText(loadGameText, 30);  // Increased font size
+        int quitTextWidth = MeasureText(quitText, 30);  // Increased font size
         
         // Find maximum width among all menu items
-        float menuWidth = (float)(std::max({newGameTextWidth, customGameTextWidth, saveGameTextWidth, loadGameTextWidth, quitTextWidth}) + 20);
+        float menuWidth = (float)(std::max({newGameTextWidth, customGameTextWidth, saveGameTextWidth, loadGameTextWidth, quitTextWidth}) + 30);
 #else
-        float menuWidth = (float)(std::max(newGameTextWidth, customGameTextWidth) + 20);
+        float menuWidth = (float)(std::max(newGameTextWidth, customGameTextWidth) + 30);
 #endif
         
         // Draw New Game option
         newGameOptionRect = {fileMenuRect.x, fileMenuRect.y + fileMenuRect.height, 
-                           menuWidth, 25};
+                           menuWidth, 35};  // Increased height from 25 to 35
         DrawRectangleRec(newGameOptionRect, BLACK);
-        DrawText(newGameText, newGameOptionRect.x + 10, newGameOptionRect.y + 2, 20, WHITE);
+        DrawText(newGameText, newGameOptionRect.x + 10, newGameOptionRect.y + 2, 30, WHITE);  // Increased font size
 
         if(!isMobile)        
         {
             // Draw Custom Game option
             customGameOptionRect = {fileMenuRect.x, newGameOptionRect.y + newGameOptionRect.height,
-                                menuWidth, 25};
+                                menuWidth, 35};  // Increased height from 25 to 35
             DrawRectangleRec(customGameOptionRect, BLACK);
-            DrawText(customGameText, customGameOptionRect.x + 10, customGameOptionRect.y + 2, 20, WHITE);
+            DrawText(customGameText, customGameOptionRect.x + 10, customGameOptionRect.y + 2, 30, WHITE);  // Increased font size
         }
 
 #ifndef __EMSCRIPTEN__
         // Draw Save Game option
         Rectangle saveGameOptionRect = {fileMenuRect.x, customGameOptionRect.y + customGameOptionRect.height,
-                                     menuWidth, 25};
+                                     menuWidth, 35};  // Increased height from 25 to 35
         DrawRectangleRec(saveGameOptionRect, BLACK);
-        DrawText(saveGameText, saveGameOptionRect.x + 10, saveGameOptionRect.y + 2, 20, WHITE);
+        DrawText(saveGameText, saveGameOptionRect.x + 10, saveGameOptionRect.y + 2, 30, WHITE);  // Increased font size
 
         // Draw Load Game option
         Rectangle loadGameOptionRect = {fileMenuRect.x, saveGameOptionRect.y + saveGameOptionRect.height,
-                                     menuWidth, 25};
+                                     menuWidth, 35};  // Increased height from 25 to 35
         DrawRectangleRec(loadGameOptionRect, BLACK);
-        DrawText(loadGameText, loadGameOptionRect.x + 10, loadGameOptionRect.y + 2, 20, WHITE);
+        DrawText(loadGameText, loadGameOptionRect.x + 10, loadGameOptionRect.y + 2, 30, WHITE);  // Increased font size
         
         // Draw Quit option
         quitOptionRect = {fileMenuRect.x, loadGameOptionRect.y + loadGameOptionRect.height,
-                         menuWidth, 25};
+                         menuWidth, 35};  // Increased height from 25 to 35
         DrawRectangleRec(quitOptionRect, BLACK);
-        DrawText(quitText, quitOptionRect.x + 10, quitOptionRect.y + 2, 20, WHITE);
+        DrawText(quitText, quitOptionRect.x + 10, quitOptionRect.y + 2, 30, WHITE);  // Increased font size
 #endif
     }
 
     // Draw Options menu
     const char* optionsText = "Options";
-    int optionsTextWidth = MeasureText(optionsText, 20);
-    optionsMenuRect = {fileMenuRect.x + fileMenuRect.width + 20, 5, (float)optionsTextWidth + 20, 20};
+    int optionsTextWidth = MeasureText(optionsText, 30);  // Increased font size
+    optionsMenuRect = {fileMenuRect.x + fileMenuRect.width + 20, 7, (float)optionsTextWidth + 30, 30};  // Increased height and padding
     
     // Draw Options menu button
     Color optionsButtonColor = isOptionsMenuOpen ? DARKGRAY : BLACK;
     DrawRectangleRec(optionsMenuRect, optionsButtonColor);
-    DrawText(optionsText, optionsMenuRect.x + 10, 5, 20, WHITE);
+    DrawText(optionsText, optionsMenuRect.x + 10, 7, 30, WHITE);  // Increased font size
     
     // Draw Options menu dropdown if open
     if (isOptionsMenuOpen)
     {
         const char* toggleMusicText = "Toggle Music";
-        int toggleMusicTextWidth = MeasureText(toggleMusicText, 20);
-        float menuWidth = (float)(toggleMusicTextWidth + 20);
+        int toggleMusicTextWidth = MeasureText(toggleMusicText, 30);  // Increased font size
+        float menuWidth = (float)(toggleMusicTextWidth + 30);
 
         // Draw Toggle Music option
         toggleMusicOptionRect = {optionsMenuRect.x, optionsMenuRect.y + optionsMenuRect.height,
-                               menuWidth, 25};
+                               menuWidth, 35};  // Increased height from 25 to 35
         DrawRectangleRec(toggleMusicOptionRect, BLACK);
-        DrawText(toggleMusicText, toggleMusicOptionRect.x + 10, toggleMusicOptionRect.y + 2, 20, WHITE);
+        DrawText(toggleMusicText, toggleMusicOptionRect.x + 10, toggleMusicOptionRect.y + 2, 30, WHITE);  // Increased font size
     }
 
     // Draw Help menu
     const char* helpText = "Help";
-    int helpTextWidth = MeasureText(helpText, 20);
-    helpMenuRect = {optionsMenuRect.x + optionsMenuRect.width + 20, 5, (float)helpTextWidth + 20, 20};
+    int helpTextWidth = MeasureText(helpText, 30);  // Increased font size
+    helpMenuRect = {optionsMenuRect.x + optionsMenuRect.width + 20, 7, (float)helpTextWidth + 30, 30};  // Increased height and padding
     
     // Draw Help menu button
     Color helpButtonColor = isHelpMenuOpen ? DARKGRAY : BLACK;
     DrawRectangleRec(helpMenuRect, helpButtonColor);
-    DrawText(helpText, helpMenuRect.x + 10, 5, 20, WHITE);
+    DrawText(helpText, helpMenuRect.x + 10, 7, 30, WHITE);  // Increased font size
     
     // Draw Help menu dropdown if open
     if (isHelpMenuOpen)
     {
         const char* aboutText = "About";
-        int aboutTextWidth = MeasureText(aboutText, 20);
+        int aboutTextWidth = MeasureText(aboutText, 30);  // Increased font size
         aboutOptionRect = {helpMenuRect.x, helpMenuRect.y + helpMenuRect.height,
-                          (float)aboutTextWidth + 20, 25};
+                          (float)aboutTextWidth + 30, 35};  // Increased height and padding
         DrawRectangleRec(aboutOptionRect, BLACK);
-        DrawText(aboutText, aboutOptionRect.x + 10, aboutOptionRect.y + 2, 20, WHITE);
+        DrawText(aboutText, aboutOptionRect.x + 10, aboutOptionRect.y + 2, 30, WHITE);  // Increased font size
     }
 }
 
@@ -725,7 +725,7 @@ bool Game::HandleMenuInput()
     float gameY = (mousePos.y - (GetScreenHeight() - (gameScreenHeight * scale)) * 0.5f) / scale;
     
     // Check if mouse is over menu bar
-    isMenuBarHovered = (gameY >= 0 && gameY <= 30);
+    isMenuBarHovered = (gameY >= 0 && gameY <= 45);
     
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
