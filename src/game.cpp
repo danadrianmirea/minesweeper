@@ -26,7 +26,7 @@ Game::Game(int screenWidth, int screenHeight)
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
       gameTime(0.0f), remainingMines(0), currentGridSize(isMobile ? MOBILE_INITIAL_GRID_SIZE : DESKTOP_INITIAL_GRID_SIZE), customGridSizeInputLength(0),
       filenameInputLength(0), isTapping(false), tapStartTime(0.0f), tapStartPos({0, 0}), tapRow(-1), tapCol(-1),
-      longTapPerformed(false), waitingForNextLevel(false), waitingForGameOver(false), isMusicPlaying(false), isSoundEnabled(true)
+      longTapPerformed(false), waitingForNextLevel(false), waitingForGameOver(false), isMusicPlaying(false)
 {
 #ifdef DEBUG
     std::cout << "Game constructor: Initializing with screen size " << screenWidth << "x" << screenHeight << std::endl;
@@ -683,20 +683,12 @@ void Game::DrawMenuBar()
     // Draw Options menu dropdown if open
     if (isOptionsMenuOpen)
     {
-        const char* toggleSoundText = "Toggle Sound";
         const char* toggleMusicText = "Toggle Music";
-        int toggleSoundTextWidth = MeasureText(toggleSoundText, 20);
         int toggleMusicTextWidth = MeasureText(toggleMusicText, 20);
-        float menuWidth = (float)(std::max(toggleSoundTextWidth, toggleMusicTextWidth) + 20);
-
-        // Draw Toggle Sound option
-        toggleSoundOptionRect = {optionsMenuRect.x, optionsMenuRect.y + optionsMenuRect.height,
-                               menuWidth, 25};
-        DrawRectangleRec(toggleSoundOptionRect, BLACK);
-        DrawText(toggleSoundText, toggleSoundOptionRect.x + 10, toggleSoundOptionRect.y + 2, 20, WHITE);
+        float menuWidth = (float)(toggleMusicTextWidth + 20);
 
         // Draw Toggle Music option
-        toggleMusicOptionRect = {optionsMenuRect.x, toggleSoundOptionRect.y + toggleSoundOptionRect.height,
+        toggleMusicOptionRect = {optionsMenuRect.x, optionsMenuRect.y + optionsMenuRect.height,
                                menuWidth, 25};
         DrawRectangleRec(toggleMusicOptionRect, BLACK);
         DrawText(toggleMusicText, toggleMusicOptionRect.x + 10, toggleMusicOptionRect.y + 2, 20, WHITE);
@@ -881,21 +873,7 @@ bool Game::HandleMenuInput()
         }
         else if (isOptionsMenuOpen)
         {
-            if (CheckCollisionPointRec({gameX, gameY}, toggleSoundOptionRect))
-            {
-                // Toggle sound effects
-                isSoundEnabled = !isSoundEnabled;
-                if (!isSoundEnabled) {
-                    SetSoundVolume(hitSound, 0.0f);
-                    SetSoundVolume(actionSound, 0.0f);
-                } else {
-                    SetSoundVolume(hitSound, 0.7f);    // 70% volume for hit sound
-                    SetSoundVolume(actionSound, 0.5f); // 50% volume for action sound
-                }
-                isOptionsMenuOpen = false;
-                return true;
-            }
-            else if (CheckCollisionPointRec({gameX, gameY}, toggleMusicOptionRect))
+            if (CheckCollisionPointRec({gameX, gameY}, toggleMusicOptionRect))
             {
                 // Toggle background music
                 if (isMusicPlaying) {

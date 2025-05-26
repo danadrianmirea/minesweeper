@@ -118,8 +118,7 @@ private:
     Music backgroundMusic;
     Sound hitSound;      // Sound for hitting a mine
     Sound actionSound;   // Sound for clicks and flag actions
-    bool isMusicPlaying;
-    bool isSoundEnabled;  // Track if sound effects are enabled
+    bool isMusicPlaying;  // Track if background music is playing
 
     int currentGridSize;  // Track current grid size
     static const int DESKTOP_INITIAL_GRID_SIZE = 5;  // Starting grid size for desktop
