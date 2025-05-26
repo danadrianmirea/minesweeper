@@ -105,8 +105,8 @@ void Game::Update(float dt)
             return;
         }
 
-        // Update game time if game is not over
-        if (!gameOver && !gameWon) {
+        // Update game time if game is not over and welcome popup is not shown
+        if (!gameOver && !gameWon && !showWelcomePopup) {
             gameTime += dt;
         }
 
