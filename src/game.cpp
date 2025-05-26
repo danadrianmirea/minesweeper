@@ -58,8 +58,8 @@ Game::Game(int screenWidth, int screenHeight)
     // Load and setup background music
     backgroundMusic = LoadMusicStream("data/music.mp3");
     SetMusicVolume(backgroundMusic, MUSIC_VOLUME);
-    PlayMusicStream(backgroundMusic);
-    isMusicPlaying = true;
+    //PlayMusicStream(backgroundMusic);
+    isMusicPlaying = false;
 
     // Load sound effects
     hitSound = LoadSound("data/hit.mp3");
@@ -89,18 +89,8 @@ void Game::Update(float dt)
         UpdateUI();
         bool menuHandledClick = HandleMenuInput();
 
-        // Update music - only pause during welcome screen
-        if (isMusicPlaying && showWelcomePopup)
-        {
-            PauseMusicStream(backgroundMusic);
-            isMusicPlaying = false;
-        }
-        else if (!isMusicPlaying && !showWelcomePopup)
-        {
-            ResumeMusicStream(backgroundMusic);
-            isMusicPlaying = true;
-        }
-        else if (isMusicPlaying)
+        // Always update the music stream if it's playing
+        if (isMusicPlaying)
         {
             UpdateMusicStream(backgroundMusic);
         }
@@ -813,6 +803,8 @@ bool Game::HandleMenuInput()
         // Handle welcome popup - click anywhere to dismiss
         if (showWelcomePopup) {
             showWelcomePopup = false;
+            PlayMusicStream(backgroundMusic);
+            isMusicPlaying = true;
             return true;
         }
 
@@ -912,6 +904,7 @@ bool Game::HandleMenuInput()
                 } else {
                     ResumeMusicStream(backgroundMusic);
                     isMusicPlaying = true;
+                    UpdateMusicStream(backgroundMusic);  // Ensure music starts playing immediately
                 }
                 isOptionsMenuOpen = false;
                 return true;
