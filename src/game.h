@@ -39,12 +39,15 @@ private:
     bool isMenuBarHovered;
     bool isFileMenuOpen;
     bool isHelpMenuOpen;
+    bool isOptionsMenuOpen;
     Rectangle fileMenuRect;
-    Rectangle newGameOptionRect;
-    Rectangle customGameOptionRect;  // New option for custom game
-    Rectangle quitOptionRect;
     Rectangle helpMenuRect;
+    Rectangle optionsMenuRect;
+    Rectangle newGameOptionRect;
+    Rectangle customGameOptionRect;
+    Rectangle quitOptionRect;
     Rectangle aboutOptionRect;
+    Rectangle toggleSoundOptionRect;
     Rectangle popupRect;
     Rectangle okButtonRect;
     bool showHelpPopup;

@@ -22,7 +22,7 @@ bool Game::isMobile = false;
 Game::Game(int screenWidth, int screenHeight)
     : screenWidth(screenWidth), screenHeight(screenHeight), gameOver(false), gameWon(false),
       gameOverTextTimer(0.0f),  // Initialize game over text timer
-      isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), showHelpPopup(false),
+      isMenuBarHovered(false), isFileMenuOpen(false), isHelpMenuOpen(false), isOptionsMenuOpen(false), showHelpPopup(false),
       showCustomGamePopup(false), showSavePopup(false), showLoadPopup(false), showWelcomePopup(true),  // Show welcome popup at start
       gameTime(0.0f), remainingMines(0), currentGridSize(isMobile ? MOBILE_INITIAL_GRID_SIZE : DESKTOP_INITIAL_GRID_SIZE), customGridSizeInputLength(0),
       filenameInputLength(0), isTapping(false), tapStartTime(0.0f), tapStartPos({0, 0}), tapRow(-1), tapCol(-1),
@@ -680,10 +680,31 @@ void Game::DrawMenuBar()
 #endif
     }
 
+    // Draw Options menu
+    const char* optionsText = "Options";
+    int optionsTextWidth = MeasureText(optionsText, 20);
+    optionsMenuRect = {fileMenuRect.x + fileMenuRect.width + 20, 5, (float)optionsTextWidth + 20, 20};
+    
+    // Draw Options menu button
+    Color optionsButtonColor = isOptionsMenuOpen ? DARKGRAY : BLACK;
+    DrawRectangleRec(optionsMenuRect, optionsButtonColor);
+    DrawText(optionsText, optionsMenuRect.x + 10, 5, 20, WHITE);
+    
+    // Draw Options menu dropdown if open
+    if (isOptionsMenuOpen)
+    {
+        const char* toggleSoundText = "Toggle Sound";
+        int toggleSoundTextWidth = MeasureText(toggleSoundText, 20);
+        toggleSoundOptionRect = {optionsMenuRect.x, optionsMenuRect.y + optionsMenuRect.height,
+                               (float)toggleSoundTextWidth + 20, 25};
+        DrawRectangleRec(toggleSoundOptionRect, BLACK);
+        DrawText(toggleSoundText, toggleSoundOptionRect.x + 10, toggleSoundOptionRect.y + 2, 20, WHITE);
+    }
+
     // Draw Help menu
     const char* helpText = "Help";
     int helpTextWidth = MeasureText(helpText, 20);
-    helpMenuRect = {fileMenuRect.x + fileMenuRect.width + 20, 5, (float)helpTextWidth + 20, 20};
+    helpMenuRect = {optionsMenuRect.x + optionsMenuRect.width + 20, 5, (float)helpTextWidth + 20, 20};
     
     // Draw Help menu button
     Color helpButtonColor = isHelpMenuOpen ? DARKGRAY : BLACK;
@@ -788,12 +809,21 @@ bool Game::HandleMenuInput()
         {
             isFileMenuOpen = !isFileMenuOpen;
             isHelpMenuOpen = false;
+            isOptionsMenuOpen = false;
+            return true;
+        }
+        else if (CheckCollisionPointRec({gameX, gameY}, optionsMenuRect))
+        {
+            isOptionsMenuOpen = !isOptionsMenuOpen;
+            isFileMenuOpen = false;
+            isHelpMenuOpen = false;
             return true;
         }
         else if (CheckCollisionPointRec({gameX, gameY}, helpMenuRect))
         {
             isHelpMenuOpen = !isHelpMenuOpen;
             isFileMenuOpen = false;
+            isOptionsMenuOpen = false;
             return true;
         }
         else if (isFileMenuOpen)
@@ -843,6 +873,27 @@ bool Game::HandleMenuInput()
             else
             {
                 isFileMenuOpen = false;
+                return true;
+            }
+        }
+        else if (isOptionsMenuOpen)
+        {
+            if (CheckCollisionPointRec({gameX, gameY}, toggleSoundOptionRect))
+            {
+                // Toggle sound
+                if (isMusicPlaying) {
+                    PauseMusicStream(backgroundMusic);
+                    isMusicPlaying = false;
+                } else {
+                    ResumeMusicStream(backgroundMusic);
+                    isMusicPlaying = true;
+                }
+                isOptionsMenuOpen = false;
+                return true;
+            }
+            else
+            {
+                isOptionsMenuOpen = false;
                 return true;
             }
         }
