@@ -1,4 +1,4 @@
-# Raylib Minesweeper
+# Minesweeper
 
 A modern implementation of the classic Minesweeper game built with raylib, supporting both desktop and web platforms. This project combines the timeless gameplay of Minesweeper with modern graphics and responsive design.
 
